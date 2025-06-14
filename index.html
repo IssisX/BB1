@@ -553,11 +553,21 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
             background-size: 40px 40px;
             pointer-events: none;
+        }
+
+        #physicsCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
         }
 
         .build-minimap {
@@ -1865,9 +1875,10 @@
 
                 <div class="build-viewport" id="buildViewport">
                     <div class="build-canvas" id="buildCanvas">
-                        <div class="grid-overlay"></div>
-                        <svg class="build-grid" id="buildGrid"></svg>
-                        <div class="particles-container" id="particlesContainer"></div>
+                    <div class="grid-overlay"></div>
+                    <svg class="build-grid" id="buildGrid"></svg>
+                    <canvas id="physicsCanvas"></canvas>
+                    <div class="particles-container" id="particlesContainer"></div>
                     </div>
                     <div class="build-minimap" id="buildMinimap">
                         <canvas id="minimapCanvas" width="150" height="100"></canvas>
@@ -2468,10 +2479,84 @@
                 this.tooltip.style.top = `${top}px`;
             }
         }
+
+        class PhysicsManager {
+            constructor() {
+                this.engine = Matter.Engine.create();
+                this.runner = Matter.Runner.create();
+                this.render = null;
+                this.active = false;
+            }
+
+            init() {
+                const canvasEl = document.getElementById('physicsCanvas');
+                this.render = Matter.Render.create({
+                    canvas: canvasEl,
+                    engine: this.engine,
+                    options: { width: canvasEl.clientWidth, height: canvasEl.clientHeight, wireframes: false, background: 'transparent' }
+                });
+                Matter.Runner.run(this.runner, this.engine);
+                Matter.Render.run(this.render);
+                Matter.Events.on(this.engine, 'collisionStart', event => {
+                    event.pairs.forEach(pair => {
+                        const pos = pair.collision.supports[0];
+                        this.spawnParticle(pos.x, pos.y);
+                    });
+                });
+                this.active = true;
+            }
+
+            spawnParticle(x, y, type = 'spark') {
+                const container = document.getElementById('particlesContainer');
+                const p = document.createElement('div');
+                p.className = `particle ${type}-particle`;
+                p.style.left = `${x}px`;
+                p.style.top = `${y}px`;
+                const size = Math.random() * 6 + 4;
+                p.style.width = p.style.height = `${size}px`;
+                container.appendChild(p);
+                setTimeout(() => p.remove(), CONFIG.PARTICLE_LIFETIME);
+            }
+
+            loadBot(components) {
+                const size = CONFIG.GRID_SIZE;
+                components.forEach(c => {
+                    const body = Matter.Bodies.rectangle(
+                        c.gridX * size + size / 2,
+                        c.gridY * size + size / 2,
+                        size,
+                        size,
+                        { density: 0.001, friction: 0.1, restitution: 0.1 }
+                    );
+                    Matter.World.add(this.engine.world, body);
+                    c.matterBody = body;
+                });
+                for (let i = 0; i < components.length; i++) {
+                    for (let j = i + 1; j < components.length; j++) {
+                        const a = components[i], b = components[j];
+                        if ((Math.abs(a.gridX - b.gridX) + Math.abs(a.gridY - b.gridY)) === 1) {
+                            const constraint = Matter.Constraint.create({ bodyA: a.matterBody, bodyB: b.matterBody, stiffness: 1, length: 0 });
+                            Matter.World.add(this.engine.world, constraint);
+                        }
+                    }
+                }
+            }
+
+            clear() {
+                Matter.World.clear(this.engine.world, false);
+                if (this.render) {
+                    Matter.Render.stop(this.render);
+                    const ctx = this.render.canvas.getContext('2d');
+                    ctx.clearRect(0, 0, this.render.canvas.width, this.render.canvas.height);
+                }
+                this.active = false;
+            }
+        }
         
         // --- Enhanced Game Manager ---
         class GameManager {
             constructor() {
+                this.physics = new PhysicsManager();
                 this.setupEventListeners();
                 this.updateCanvasTransform();
             }
@@ -2490,6 +2575,7 @@
                 document.getElementById('replayBattleBtn').addEventListener('click', this.replayBattle.bind(this));
                 document.getElementById('saveBtn').addEventListener('click', this.saveBot.bind(this));
                 document.getElementById('loadBtn').addEventListener('click', this.loadBot.bind(this));
+                document.getElementById('testModeBtn').addEventListener('click', this.startTestMode.bind(this));
 
                 document.addEventListener('keydown', this.handleKeyDown.bind(this));
                 document.addEventListener('keyup', this.handleKeyUp.bind(this));
@@ -2540,12 +2626,13 @@
             renderBot() {
                 const buildCanvas = document.getElementById('buildCanvas');
                 buildCanvas.querySelectorAll('.bot-component, .connection-line').forEach(el => el.remove());
-                
+
                 this.renderConnections();
 
                 gameState.state.bot.components.forEach(component => {
                     this.renderComponent(component, buildCanvas);
                 });
+                this.updateMinimap();
             }
 
             renderConnections() {
@@ -2568,6 +2655,17 @@
                         }
                     }
                 }
+            }
+
+            updateMinimap() {
+                const canvas = document.getElementById('minimapCanvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const scale = 5;
+                gameState.state.bot.components.forEach(c => {
+                    ctx.fillStyle = COMPONENTS[c.type].color;
+                    ctx.fillRect(c.gridX * scale, c.gridY * scale, scale, scale);
+                });
             }
 
             renderComponent(component, container) {
@@ -2600,8 +2698,40 @@
                     uiManager.tooltip.show(element, compDef.name, stats.join(''), compDef.description);
                 });
                 element.addEventListener('mouseleave', () => uiManager.tooltip.hide());
-                
+                element.addEventListener('click', () => {
+                    const tool = gameState.state.ui.activeTool;
+                    if (tool === 'delete') {
+                        this.deleteComponent(component.id);
+                    } else if (tool === 'rotate') {
+                        this.rotateComponent(component.id, 90);
+                    } else if (tool === 'select') {
+                        element.classList.toggle('selected');
+                        const sel = gameState.state.ui.selectedComponents;
+                        if (element.classList.contains('selected')) sel.push(component.id);
+                        else gameState.state.ui.selectedComponents = sel.filter(id => id !== component.id);
+                    }
+                });
+
                 container.appendChild(element);
+            }
+
+            rotateComponent(id, degrees) {
+                const component = gameState.state.bot.components.find(c => c.id === id);
+                if (!component) return;
+                component.rotation = (component.rotation || 0) + degrees;
+                const el = document.getElementById(`component-${id}`);
+                if (el) el.style.transform = `rotate(${component.rotation}deg)`;
+            }
+
+            deleteComponent(id) {
+                const comps = gameState.state.bot.components;
+                const idx = comps.findIndex(c => c.id === id);
+                if (idx === -1) return;
+                const beforeState = comps.map(c => ({ ...c }));
+                comps.splice(idx, 1);
+                const afterState = comps.map(c => ({ ...c }));
+                gameState.addHistoryAction({ type: 'delete', before: beforeState, after: afterState });
+                gameState.applyHistoryState(afterState);
             }
 
             async clearBot() {
@@ -2663,12 +2793,22 @@
             }
 
             startBattle() {
-                document.getElementById('loadingOverlay').style.display = 'flex';
-                setTimeout(() => {
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                    battleManager.initializeBattle();
-                    uiManager.switchToMode('battle');
-                }, 1500);
+                const overlay = document.getElementById('loadingOverlay');
+                const text = document.getElementById('loadingText');
+                const steps = ['Initializing Physics...', 'Spawning Bots...', 'Engaging AI...'];
+                let i = 0;
+                overlay.style.display = 'flex';
+                const next = () => {
+                    if (i < steps.length) {
+                        text.textContent = steps[i++];
+                        setTimeout(next, 600);
+                    } else {
+                        overlay.style.display = 'none';
+                        battleManager.initializeBattle();
+                        uiManager.switchToMode('battle');
+                    }
+                };
+                next();
             }
 
             returnToBuilder() {
@@ -2681,6 +2821,21 @@
                 document.getElementById('gameOverScreen').style.display = 'none';
                 battleManager.cleanup();
                 setTimeout(() => this.startBattle(), 500);
+            }
+
+            startTestMode() {
+                if (this.physics.active) {
+                    this.stopTestMode();
+                    return;
+                }
+                this.physics.init();
+                this.physics.loadBot(gameState.state.bot.components);
+                document.getElementById('testModeBtn').classList.add('active');
+            }
+
+            stopTestMode() {
+                this.physics.clear();
+                document.getElementById('testModeBtn').classList.remove('active');
             }
 
             handleKeyDown(event) {
@@ -2701,6 +2856,10 @@
             handleResize() {
                 if (gameState.state.mode === 'builder') this.renderBot();
                 else if (gameState.state.mode === 'battle') battleManager.handleResize();
+                if (this.physics.active) {
+                    this.physics.render.canvas.width = document.getElementById('physicsCanvas').clientWidth;
+                    this.physics.render.canvas.height = document.getElementById('physicsCanvas').clientHeight;
+                }
             }
         }
         
