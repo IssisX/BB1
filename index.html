@@ -1625,6 +1625,29 @@
             padding: 0;
             cursor: pointer;
         }
+
+        /* Particle Effects CSS */
+        .particle {
+            transition: opacity 0.1s linear; /* Smooth fade out for all particles */
+            position:absolute; /* Ensured by JS, but good default */
+            border-radius:50%;
+            pointer-events:none;
+        }
+        .flame-particle {
+            background: radial-gradient(circle, var(--accent-orange), var(--warning-yellow) 70%, transparent 100%);
+            box-shadow: 0 0 8px var(--accent-orange);
+            /* Default size, can be overridden by JS */
+            width: 10px;
+            height: 10px;
+        }
+        .generic-particle { /* For other potential particle types */
+            background-color: var(--text-muted);
+        }
+        .spark-particle {
+            background-color: var(--warning-yellow);
+            box-shadow: 0 0 5px var(--warning-yellow), 0 0 8px white; /* Glow effect */
+            /* Size will be set by JS */
+        }
     </style>
 </head>
 <body>
@@ -1920,7 +1943,7 @@
                         <button class="toolbar-btn active" id="placeTool" title="Place Tool (P)">
                             <span class="btn-icon">➕</span>
                         </button>
-                        <button class="toolbar-btn" id="rotateTool" title="Rotate Tool (R)">
+                        <button class="toolbar-btn" id="rotateTool" title="Rotate Tool (R) - Click selected component to rotate.">
                             <span class="btn-icon">🔄</span>
                         </button>
                         <button class="toolbar-btn" id="deleteTool" title="Delete Tool (Delete/Backspace)">
@@ -2059,6 +2082,12 @@
                     <div class="health-text" id="playerHealthText">100 / 100 HP</div>
                     <div class="shield-bar" id="playerShieldBar" style="height: 8px; background: #0096FF; border-radius: 4px; margin-top: 4px; width: 0%; transition: width 0.3s ease;"></div>
                     <div class="health-text" id="playerShieldText" style="font-size: 9px;">0 / 0 SHP</div>
+                    <div id="playerSensorData" style="display: none; margin-top: 8px; font-size: 10px; border-top: 1px solid var(--glass-border); padding-top: 6px;">
+                        <div class="hud-title" style="font-size:11px; margin-bottom:4px;">Enemy Intel:</div>
+                        <div><span id="sensedEnemyHealth">N/A</span></div>
+                        <div><span id="sensedEnemyShield">N/A</span></div>
+                        <div>Dominant Weapon: <span id="sensedEnemyWeapon">Unknown</span></div>
+                    </div>
                 </div>
                 
                 <div class="battle-timer" id="battleTimer">03:00</div>
@@ -2392,11 +2421,12 @@
             'small-battery': { name: 'Small Battery', type: 'power', category: 'power', mass: 2, durability: 25, powerDraw: -30, color: 'var(--warning-yellow)', description: 'Compact power source. Light and efficient.', combatRating: 2 },
             'large-battery': { name: 'Large Battery', type: 'power', category: 'power', mass: 5, durability: 40, powerDraw: -80, color: 'var(--warning-yellow)', description: 'High-capacity power source. Heavy but provides substantial energy.', combatRating: 4 },
             'drill-spike': { name: 'Drill Spike', type: 'weapon', category: 'weapon', mass: 3, durability: 45, powerDraw: 20, color: 'var(--accent-orange)', damage: 15, range: 60, attackRate: 2.0, description: 'Continuous damage melee weapon. High attack rate, moderate damage.', combatRating: 6, abilities: ['melee_attack'] },
-            'spinner-blade': { name: 'Spinner Blade', type: 'weapon', category: 'weapon', mass: 4, durability: 50, powerDraw: 30, color: 'var(--accent-orange)', damage: 25, range: 80, attackRate: 1.5, description: 'Devastating spinning weapon. High damage, wide range.', combatRating: 8, abilities: ['spin_attack', 'knockback'] },
-            'hammer-arm': { name: 'Hammer Arm', type: 'weapon', category: 'weapon', mass: 4, durability: 55, powerDraw: 25, color: 'var(--accent-orange)', damage: 30, range: 70, attackRate: 1.0, description: 'Powerful impact weapon. Massive damage, slow attack rate.', combatRating: 7, abilities: ['impact_attack', 'stun'] },
+            'spinner-blade': { name: 'Spinner Blade', type: 'weapon', category: 'weapon', mass: 4, durability: 50, powerDraw: 30, color: 'var(--accent-orange)', damage: 25, range: 80, attackRate: 1.5, description: 'Devastating spinning weapon. High damage, wide range.', combatRating: 8, abilities: ['spin_attack', 'knockback'], knockbackForce: 0.03, knockbackTorque: 0.015 },
+            'hammer-arm': { name: 'Hammer Arm', type: 'weapon', category: 'weapon', mass: 4, durability: 55, powerDraw: 25, color: 'var(--accent-orange)', damage: 30, range: 70, attackRate: 1.0, description: 'Powerful impact weapon. Massive damage, slow attack rate.', combatRating: 7, abilities: ['impact_attack', 'stun'], stunDuration: 1200 },
             'flipper-panel': { name: 'Flipper Panel', type: 'weapon', category: 'weapon', mass: 3, durability: 40, powerDraw: 20, color: 'var(--accent-orange)', damage: 20, range: 60, attackRate: 1.2, description: 'Tactical lifting weapon. Flips opponents, moderate damage.', combatRating: 6, abilities: ['flip_attack', 'positioning'] },
-            'servo': { name: 'Servo', type: 'utility', category: 'utility', mass: 1, durability: 30, powerDraw: 10, color: 'var(--accent-purple)', description: 'Enables rotational movement for weapons and tools.', combatRating: 2, abilities: ['rotation'] },
-            'armor-plating': { name: 'Armor Plating', type: 'utility', category: 'utility', mass: 6, durability: 120, powerDraw: 0, color: 'var(--accent-purple)', description: 'Maximum protection armor. No function beyond defense.', combatRating: 5, abilities: ['protection'] }
+            'flamethrower': { name: 'Flamethrower', type: 'weapon', category: 'weapon', mass: 3, durability: 40, powerDraw: 35, color: 'var(--accent-orange)', damage: 5, attackRate: 5, range: 50, description: 'Short-range continuous fire. Melts armor over time.', combatRating: 7, abilities: ['continuous_damage', 'area_effect'] },
+            'energy-shield': { name: 'Energy Shield', type: 'utility', category: 'utility', mass: 4, durability: 50, powerDraw: 25, color: 'var(--accent-purple)', shieldHealth: 100, shieldRegen: 5, description: 'Absorbs incoming damage. Regenerates slowly when not hit.', combatRating: 6, abilities: ['shielding', 'regeneration'] },
+            'sensor-array': { name: 'Sensor Array', type: 'utility', category: 'utility', mass: 2, durability: 30, powerDraw: 15, color: 'var(--accent-purple)', range: 200, description: 'Enhances targeting capabilities and provides battlefield information.', combatRating: 4, abilities: ['scan', 'accuracy_boost'] }
         };
 
         // --- Enhanced Game State Management ---
@@ -2465,29 +2495,31 @@
             canUndo() { return this.state.history.currentIndex >= 0; }
             canRedo() { return this.state.history.currentIndex < this.state.history.actions.length - 1; }
 
-            applyHistoryState(data, actionType) { // Added actionType to guide how 'data' is interpreted
+            applyHistoryState(data, actionType) {
                 if (actionType === 'move_component') {
-                    // For 'move_component', 'data' is an object like { id, gridX, gridY }
                     const componentId = data.id;
                     const componentIndex = this.state.bot.components.findIndex(c => c.id === componentId);
                     if (componentIndex !== -1) {
-                        // Update only relevant properties for a move
                         this.state.bot.components[componentIndex].gridX = data.gridX;
                         this.state.bot.components[componentIndex].gridY = data.gridY;
-                        // If other properties were part of 'before'/'after' in move_component, update them here too
-                        // For instance, if the 'data' object contains more than just id, gridX, gridY, spread it:
-                        // this.state.bot.components[componentIndex] = { ...this.state.bot.components[componentIndex], ...data };
                     } else {
                         console.warn(`Undo/Redo Move: Component ID ${componentId} not found.`);
                     }
-                } else if (Array.isArray(data)) {
-                    // For 'add', 'delete_components', 'clear', 'load', 'randomize', 'data' is the full components array
+                } else if (actionType === 'rotate_component') {
+                    const componentId = data.componentId; // data is { componentId, rotation }
+                    const componentIndex = this.state.bot.components.findIndex(c => c.id === componentId);
+                    if (componentIndex !== -1) {
+                        this.state.bot.components[componentIndex].rotation = data.rotation;
+                    } else {
+                        console.warn(`Undo/Redo Rotate: Component ID ${componentId} not found.`);
+                    }
+                } else if (Array.isArray(data)) { // Handles add, delete_components, clear, load, randomize
                     this.state.bot.components = data.map(c => ({...c}));
                 } else {
-                     console.error("ApplyHistoryState: Unknown data format or missing/unhandled actionType", data, actionType);
+                     console.error("ApplyHistoryState: Unknown data format or unhandled actionType", data, actionType);
                 }
-                this.updateBotStats(); // Recalculate stats based on (potentially) changed components
-                this.emit('botDesignChanged'); // Triggers GameManager to re-render the bot
+                this.updateBotStats();
+                this.emit('botDesignChanged');
             }
 
             undo() {
@@ -2564,6 +2596,7 @@
                 this.modal.confirmBtn.textContent = confirmText;
                 this.modal.cancelBtn.textContent = cancelText;
                 this.modal.overlay.classList.add('show');
+                // playSound('ui_modal_open'); // Conceptual
                 return new Promise(resolve => {
                     this.modal.resolve = resolve;
                 });
@@ -2575,13 +2608,23 @@
                     this.modal.resolve(result);
                     this.modal.resolve = null;
                 }
+                // if (result) playSound('ui_modal_confirm'); else playSound('ui_modal_cancel'); // Conceptual
             }
 
             setupEventListeners() {
-                document.querySelectorAll('.section-header').forEach(header => header.addEventListener('click', this.toggleSection.bind(this)));
-                document.querySelectorAll('.filter-btn').forEach(btn => btn.addEventListener('click', this.handleFilterClick.bind(this)));
+                document.querySelectorAll('.section-header').forEach(header => header.addEventListener('click', (event) => {
+                    this.toggleSection(event);
+                    // playSound('ui_click_general');
+                }));
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.addEventListener('click', (event) => {
+                    this.handleFilterClick(event);
+                    // playSound('ui_filter_click');
+                }));
                 document.getElementById('componentSearch').addEventListener('input', this.handleSearch.bind(this));
-                document.querySelectorAll('.toolbar-btn[id$="Tool"]').forEach(btn => btn.addEventListener('click', this.handleToolSelection.bind(this)));
+                document.querySelectorAll('.toolbar-btn[id$="Tool"]').forEach(btn => btn.addEventListener('click', (event) => {
+                    this.handleToolSelection(event);
+                    // playSound('ui_tool_select');
+                }));
                 document.getElementById('zoomInBtn').addEventListener('click', () => this.adjustZoom(CONFIG.ZOOM_STEP));
                 document.getElementById('zoomOutBtn').addEventListener('click', () => this.adjustZoom(-CONFIG.ZOOM_STEP));
                 
@@ -2590,7 +2633,10 @@
                 this.gameState.addEventListener('historyUpdated', this.updateHistoryButtons.bind(this));
 
                 if (this.notificationIndicator) {
-                    this.notificationIndicator.addEventListener('click', this.toggleNotificationPanel.bind(this));
+                    this.notificationIndicator.addEventListener('click', () => {
+                        this.toggleNotificationPanel();
+                        // playSound('ui_notification_panel_toggle');
+                    });
                 } else {
                     console.error("Notification indicator not found for click listener setup.");
                 }
@@ -2601,9 +2647,10 @@
                 const settingsApplyBtn = document.getElementById('settingsApplyBtn');
                 const resetTutorialsBtn = document.getElementById('resetTutorialsBtn');
 
-                if(settingsBtn) settingsBtn.addEventListener('click', () => this.toggleSettingsModal(true));
-                if(settingsCloseBtn) settingsCloseBtn.addEventListener('click', () => this.toggleSettingsModal(false));
+                if(settingsBtn) settingsBtn.addEventListener('click', () => { this.toggleSettingsModal(true); /* playSound('ui_settings_open'); */ });
+                if(settingsCloseBtn) settingsCloseBtn.addEventListener('click', () => { this.toggleSettingsModal(false); /* playSound('ui_modal_close'); */ });
                 if(settingsApplyBtn) settingsApplyBtn.addEventListener('click', () => {
+                    // playSound('ui_settings_apply');
                     const masterVolume = document.getElementById('masterVolume');
                     const enableParticles = document.getElementById('enableParticles');
                     const themeSelect = document.getElementById('themeSelect');
@@ -2616,6 +2663,7 @@
                     this.toggleSettingsModal(false);
                 });
                 if(resetTutorialsBtn) resetTutorialsBtn.addEventListener('click', () => {
+                     // playSound('ui_click_general'); // Conceptual
                      console.log('Reset Tutorials button clicked.');
                      this.showNotification('Tutorials reset (placeholder).', 'info');
                 });
@@ -2632,7 +2680,7 @@
                     }
                 }
                 this.settingsModal.style.display = show ? 'flex' : 'none';
-                // Potentially load current settings into inputs when showing
+                // if (show) playSound('ui_modal_open'); // Conceptual, might be redundant if button has sound
             }
 
             // --- Notification System Methods ---
@@ -2890,6 +2938,7 @@
                     this.notifications.pop();
                 }
                 this.updateNotificationDisplay(); // Update badge and panel if open
+                // playSound('ui_notification_sent'); // Conceptual
             }
 
             switchToMode(mode) {
@@ -3049,6 +3098,7 @@
                 gameState.addHistoryAction({ type: 'add', before: beforeState, after: afterState });
                 
                 gameState.applyHistoryState(afterState);
+                // playSound('build_place_component');
                 return true;
             }
 
@@ -3094,17 +3144,28 @@
                     element.classList.add('selected');
                 }
                 element.id = `component-${component.id}`;
-                element.style.cssText = `
-                    position: absolute;
-                    left: ${component.gridX * CONFIG.GRID_SIZE}px;
-                    top: ${component.gridY * CONFIG.GRID_SIZE}px;
-                    width: ${CONFIG.GRID_SIZE}px; height: ${CONFIG.GRID_SIZE}px;
-                    background: ${compDef.color}; border-radius: 8px;
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 12px; font-weight: bold; color: white;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); cursor: pointer;
-                    user-select: none; z-index: 10;
-                `;
+                const rotation = component.rotation || 0;
+                // Apply transform for position and rotation
+                element.style.position = 'absolute';
+                element.style.left = `${component.gridX * CONFIG.GRID_SIZE}px`;
+                element.style.top = `${component.gridY * CONFIG.GRID_SIZE}px`;
+                element.style.width = `${CONFIG.GRID_SIZE}px`;
+                element.style.height = `${CONFIG.GRID_SIZE}px`;
+                element.style.background = compDef.color;
+                element.style.borderRadius = '8px';
+                element.style.display = 'flex';
+                element.style.alignItems = 'center';
+                element.style.justifyContent = 'center';
+                element.style.fontSize = '12px';
+                element.style.fontWeight = 'bold';
+                element.style.color = 'white';
+                element.style.textShadow = '1px 1px 2px rgba(0,0,0,0.8)';
+                element.style.cursor = 'pointer';
+                element.style.userSelect = 'none';
+                element.style.zIndex = '10';
+                element.style.transformOrigin = 'center center';
+                element.style.transform = `rotate(${rotation}deg)`; // Only rotation here as left/top handle position
+
                 element.textContent = uiManager.getComponentAbbreviation(component.type);
 
                 const healthIndicator = document.createElement('div');
@@ -3202,7 +3263,7 @@
                 const motorType = 'electric-motor';
                 const powerTypes = ['small-battery', 'large-battery'];
                 const weaponTypes = ['drill-spike', 'spinner-blade', 'hammer-arm', 'flipper-panel', 'flamethrower'];
-                const utilityTypes = ['servo', 'energy-shield', 'sensor-array'];
+                const utilityTypes = ['servo', 'energy-shield', 'sensor-array', 'armor-plating']; // Added armor-plating to utility for variety
 
                 // Build Sequence
                 if (!tryAddComponent(coreTypes[0])) { // Must add control unit
@@ -3263,6 +3324,7 @@
                 }
                 localStorage.setItem(CONFIG.SAVE_SLOT_KEY, JSON.stringify(botData));
                 uiManager.showNotification('Bot design saved successfully!', 'success');
+                // playSound('ui_save_load_success');
             }
             
             async loadBot() {
@@ -3279,11 +3341,14 @@
                     gameState.addHistoryAction({ type: 'load', before: beforeState, after: afterState });
                     gameState.applyHistoryState(afterState);
                     uiManager.showNotification('Bot design loaded!', 'success');
+                    // playSound('ui_save_load_success');
                 }
             }
 
             startBattle() {
                 document.getElementById('loadingOverlay').style.display = 'flex';
+                // playSound('battle_start_fanfare');
+                // playMusic('battle_music_loop', {loop: true});
                 setTimeout(() => {
                     document.getElementById('loadingOverlay').style.display = 'none';
                     battleManager.initializeBattle();
@@ -3350,11 +3415,11 @@
                     this.gameState.state.bot.components = afterState;
                     this.gameState.state.ui.selectedComponents = [];
 
-                    this.gameState.updateBotStats(); // This should trigger botStatsUpdated event
-                    this.renderBot(); // Explicitly call renderBot to be sure UI updates
-                                     // In a more event-driven system, botDesignChanged event would handle this.
+                    this.gameState.updateBotStats();
+                    this.renderBot();
 
                     uiManager.showNotification(`${selectedIds.length} component(s) deleted.`, 'info');
+                    // playSound('build_delete_component');
                 } else {
                     console.log("Delete selected: No change in components array length, nothing deleted?");
                 }
@@ -3386,7 +3451,15 @@
                 this.botPartSize = CONFIG.GRID_SIZE * 0.95;
                 this.remainingBattleTime = CONFIG.BATTLE_DURATION;
                 this.battleEnded = false;
-                this.collisionHandlers = null; // To store collision event pair IDs
+                this.collisionHandlers = null;
+                this.particles = [];
+                this.particlesContainer = null;
+                this.playerHasSensorArray = false;
+                this.playerSensorDisplay = null;
+                this.sensedEnemyHealthDisplay = null;
+                this.sensedEnemyShieldDisplay = null;
+                this.sensedEnemyWeaponDisplay = null;
+                this.lastSparkTime = {}; // For throttling spark particles per collision pair
             }
 
             initializeBattle() {
@@ -3397,8 +3470,26 @@
                     return;
                 }
 
-                // Ensure arena is clear for new renderer
-                battleArena.innerHTML = '';
+                this.particlesContainer = document.getElementById('battleParticles');
+                if (!this.particlesContainer) {
+                     console.error("Battle particles container not found!");
+                     // Fallback: create one if missing, though it should be in HTML
+                     this.particlesContainer = document.createElement('div');
+                     this.particlesContainer.id = 'battleParticles';
+                     this.particlesContainer.className = 'particles-container'; // Ensure it has this class
+                     battleArena.appendChild(this.particlesContainer);
+                } else {
+                    this.particlesContainer.innerHTML = ''; // Clear from previous battle
+                }
+                this.particles = [];
+
+
+                // Ensure arena is clear for new renderer (except for particles container)
+                Array.from(battleArena.children).forEach(child => {
+                    if (child !== this.particlesContainer) {
+                        child.remove();
+                    }
+                });
 
 
                 // 1. Matter.js Engine Setup
@@ -3491,18 +3582,37 @@
                 window.addEventListener('resize', this.handleResize.bind(this)); // Add resize listener for battle mode
 
                 // Collision Events
-                this.collisionHandlers = new Set(); // Use a Set to track active collision pairs
+                this.collisionHandlers = new Set();
                 Matter.Events.on(this.engine, 'collisionStart', this.handleCollisions.bind(this));
-                Matter.Events.on(this.engine, 'collisionActive', this.handleCollisions.bind(this)); // For continuous damage or effects
-                // Matter.Events.on(this.engine, 'collisionEnd', (event) => {
-                //     event.pairs.forEach(pair => {
-                //         this.collisionHandlers.delete(pair.id);
-                //     });
-                // });
+                Matter.Events.on(this.engine, 'collisionActive', this.handleCollisions.bind(this));
+                // Matter.Events.on(this.engine, 'collisionEnd', this.handleCollisionEnd.bind(this)); // For stopping looped sounds
 
                 this.remainingBattleTime = CONFIG.BATTLE_DURATION;
                 this.battleEnded = false;
                 document.getElementById('gameOverScreen').style.display = 'none'; // Ensure it's hidden
+
+                // Check for player sensor array after player bot body is created
+                if (this.playerBotBody && this.playerBotBody.parts) {
+                    this.playerHasSensorArray = this.playerBotBody.parts.slice(1).some(part =>
+                        part.gameComponent &&
+                        part.componentDefinition &&
+                        part.componentDefinition.type === 'sensor-array' &&
+                        !part.gameComponent.destroyed
+                    );
+                } else {
+                    this.playerHasSensorArray = false;
+                }
+
+                // Get sensor HUD elements
+                this.playerSensorDisplay = document.getElementById('playerSensorData');
+                this.sensedEnemyHealthDisplay = document.getElementById('sensedEnemyHealth');
+                this.sensedEnemyShieldDisplay = document.getElementById('sensedEnemyShield');
+                this.sensedEnemyWeaponDisplay = document.getElementById('sensedEnemyWeapon');
+
+                if(this.playerHasSensorArray && !this.playerSensorDisplay) {
+                    console.warn("Player has sensor array, but HUD elements for sensor data are missing!");
+                }
+
             }
 
             createBotBody(components, initialX, initialY, options = {}, botType = 'player') {
@@ -3551,17 +3661,24 @@
                         }
                     );
 
-                    part.gameComponent = component; // Reference to the specific instance of the component
-                    part.componentDefinition = componentDef; // Reference to the base component definition
+                    part.gameComponent = component;
+                    part.componentDefinition = componentDef;
                     part.isControlUnit = component.type === 'control-unit';
+                    part.initialRotation = component.rotation || 0; // Store initial rotation
 
                     if (componentDef.type === 'energy-shield') {
                         part.gameComponent.currentShieldHealth = componentDef.shieldHealth;
-                        part.gameComponent.shieldLastHitTime = 0; // Initialize shield last hit time
+                        part.gameComponent.shieldLastHitTime = 0;
+                    }
+
+                    // Apply initial rotation to the part before adding to compound body
+                    // Part positions are relative to (0,0) at this stage before Matter.Body.create sets the center of mass.
+                    if (part.initialRotation !== 0) {
+                        Matter.Body.rotate(part, part.initialRotation * (Math.PI / 180), {x:0, y:0}); // Rotate around its own local origin (0,0)
                     }
 
                     parts.push(part);
-                    totalMass += componentDef.mass; // Approximate mass contribution
+                    totalMass += componentDef.mass;
                 });
 
                 if (parts.length === 0) {
@@ -3578,9 +3695,13 @@
 
                 // Set initial position of the compound body
                 Matter.Body.setPosition(compoundBody, { x: initialX, y: initialY });
-                // Adjust mass based on components - Matter.js does this, but we can guide it
                 Matter.Body.setMass(compoundBody, options.density ? options.density * totalMass : compoundBody.mass);
 
+                // Initialize custom state for stun or other effects
+                compoundBody.customState = {
+                    isStunned: false,
+                    stunEndTime: 0
+                };
 
                 console.log(`${botType} bot body created with ${parts.length} parts. Mass: ${compoundBody.mass.toFixed(2)}`);
                 return compoundBody;
@@ -3594,10 +3715,136 @@
 
                 this.handlePlayerInput();
                 this.updateAI();
-                this.updateShields(deltaTime); // Call shield regeneration
+                this.updateShields(deltaTime);
+                this.updateParticles(deltaTime); // Update particles
                 this.updateHUD();
                 this.checkBattleEndConditions();
+                this.updateDOTs(deltaTime); // Update DOTs
             }
+
+            createParticle(x, y, type, options = {}) {
+                const particle = {
+                    id: Date.now() + Math.random(),
+                    x: x - (this.render ? this.render.options.width / 2 : 0) , // Adjust for canvas transform if needed, or use world coords
+                    y: y - (this.render ? this.render.options.height / 2: 0),
+                    type,
+                    size: options.size || 5,
+                    color: options.color || 'orange',
+                    initialLife: options.life || 500, // Store initial life for opacity calculation
+                    life: options.life || 500,
+                    vx: options.vx || 0,
+                    vy: options.vy || 0,
+                    element: null
+                };
+
+                const pEl = document.createElement('div');
+                pEl.className = 'particle ' + (type === 'flame' ? 'flame-particle' : 'generic-particle');
+                // Initial position set via transform later, background set by class or here if dynamic
+                pEl.style.width = `${particle.size}px`;
+                pEl.style.height = `${particle.size}px`;
+                if (type !== 'flame' && type !== 'spark') pEl.style.backgroundColor = particle.color;
+                // Flame and Spark primarily use CSS for their look, but color can be a fallback.
+                // If spark color is dynamic (yellow/white), set it here:
+                if (type === 'spark') pEl.style.backgroundColor = particle.color;
+
+                pEl.style.opacity = '1';
+
+                particle.element = pEl;
+                if (this.particlesContainer) {
+                    this.particlesContainer.appendChild(pEl);
+                } else {
+                    console.warn("No particles container to append particle to.");
+                    return; // Don't add to array if no container
+                }
+                this.particles.push(particle);
+            }
+
+            updateParticles(deltaTime) {
+                if (!this.particlesContainer) return;
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const particle = this.particles[i];
+                    particle.life -= deltaTime * 1000;
+
+                    if (particle.life <= 0) {
+                        if (particle.element) particle.element.remove();
+                        this.particles.splice(i, 1);
+                    } else {
+                        particle.x += particle.vx * deltaTime;
+                        particle.y += particle.vy * deltaTime;
+                        // Using absolute positioning within the particlesContainer
+                        // The particlesContainer itself is positioned relative to battleArena
+                        particle.element.style.transform = `translate(${particle.x}px, ${particle.y}px)`;
+                        particle.element.style.opacity = Math.max(0, particle.life / particle.initialLife).toFixed(2);
+                    }
+                }
+            }
+
+            updateDOTs(deltaTime) {
+                [this.playerBotBody, this.enemyBotBody].forEach(botBody => {
+                    if (!botBody || !botBody.parts) return;
+
+                    botBody.parts.slice(1).forEach(targetPart => { // Iterate through each part of the bot
+                        if (targetPart.gameComponent && targetPart.gameComponent.activeDOTs && targetPart.gameComponent.activeDOTs.length > 0) {
+                            for (let j = targetPart.gameComponent.activeDOTs.length - 1; j >= 0; j--) {
+                                const dotEffect = targetPart.gameComponent.activeDOTs[j];
+
+                                if (Date.now() - dotEffect.lastTickTime >= dotEffect.msPerTick) {
+                                    dotEffect.lastTickTime = Date.now();
+                                    dotEffect.ticksRemaining--;
+
+                                    let damageToApply = dotEffect.damagePerTick;
+                                    let remainingDotDamage = damageToApply;
+
+                                    // Apply DOT damage to shields first
+                                    const targetBotForShieldCheck = targetPart.parent;
+                                    if (targetBotForShieldCheck && targetBotForShieldCheck.parts) {
+                                        const shieldParts = targetBotForShieldCheck.parts.slice(1).filter(p =>
+                                            p.gameComponent &&
+                                            p.componentDefinition &&
+                                            p.componentDefinition.type === 'energy-shield' &&
+                                            !p.gameComponent.destroyed &&
+                                            p.gameComponent.currentShieldHealth > 0
+                                        );
+
+                                        if (shieldParts.length > 0) {
+                                            const activeShield = shieldParts[0]; // Simple: apply to first active shield
+                                            activeShield.gameComponent.shieldLastHitTime = Date.now(); // Shield was hit by DOT
+
+                                            if (remainingDotDamage <= activeShield.gameComponent.currentShieldHealth) {
+                                                activeShield.gameComponent.currentShieldHealth -= remainingDotDamage;
+                                                remainingDotDamage = 0;
+                                            } else {
+                                                remainingDotDamage -= activeShield.gameComponent.currentShieldHealth;
+                                                activeShield.gameComponent.currentShieldHealth = 0;
+                                            }
+                                        }
+                                    }
+
+                                    // Apply any remaining DOT damage to the part's durability
+                                    if (remainingDotDamage > 0 && targetPart.gameComponent.durability > 0) {
+                                        targetPart.gameComponent.durability = Math.max(0, targetPart.gameComponent.durability - remainingDotDamage);
+                                        if (targetPart.gameComponent.durability === 0 && !targetPart.gameComponent.destroyed) {
+                                            targetPart.gameComponent.destroyed = true;
+                                            // playSound('component_destroyed_explosion'); // Conceptual
+                                            targetPart.render.opacity = 0.3;
+                                            if (targetPart.componentDefinition && targetPart.componentDefinition.type === 'energy-shield') {
+                                                targetPart.gameComponent.currentShieldHealth = 0;
+                                            }
+                                            console.log(`DOT destroyed ${targetPart.label} on ${targetPart.parent.label}`);
+                                        }
+                                    }
+
+                                    if (dotEffect.ticksRemaining <= 0) {
+                                        targetPart.gameComponent.activeDOTs.splice(j, 1);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+
+            // updateAI_old() was removed here.
 
             updateShields(deltaTime) {
                 const shieldRegenDelay = 2000; // 2 seconds before regen starts
@@ -3684,6 +3931,57 @@
                     document.getElementById('enemyShieldBar').style.width = maxShield > 0 ? `${(currentShield / maxShield) * 100}%` : '0%';
                     document.getElementById('enemyShieldText').textContent = `${Math.round(currentShield)} / ${Math.round(maxShield)} SHP`;
                 }
+
+                // Sensor Data Display
+                if (this.playerHasSensorArray && this.enemyBotBody && this.playerSensorDisplay) {
+                    // Re-check sensor presence dynamically in case it's destroyed
+                    const currentSensorActive = this.playerBotBody && this.playerBotBody.parts && this.playerBotBody.parts.slice(1).some(part =>
+                        part.gameComponent &&
+                        part.componentDefinition &&
+                        part.componentDefinition.type === 'sensor-array' &&
+                        !part.gameComponent.destroyed
+                    );
+
+                    if (currentSensorActive) {
+                        this.playerSensorDisplay.style.display = 'block';
+
+                        let enemyCurrentHp = 0;
+                        let enemyMaxHp = 0;
+                        this.enemyBotBody.parts.slice(1).forEach(part => {
+                            if (part.gameComponent && part.componentDefinition) {
+                                enemyCurrentHp += Math.max(0, part.gameComponent.durability);
+                                enemyMaxHp += part.componentDefinition.durability;
+                            }
+                        });
+                        const enemyHealthPercent = enemyMaxHp > 0 ? ((enemyCurrentHp / enemyMaxHp) * 100).toFixed(0) : 0;
+                        if(this.sensedEnemyHealthDisplay) this.sensedEnemyHealthDisplay.textContent = `Core Integrity: ${enemyHealthPercent}%`;
+
+                        let enemyCurrentShield = 0;
+                        let enemyMaxShield = 0;
+                        this.enemyBotBody.parts.slice(1).forEach(part => {
+                            if (part.gameComponent && part.componentDefinition && part.componentDefinition.type === 'energy-shield' && !part.gameComponent.destroyed) {
+                                enemyCurrentShield += Math.max(0, part.gameComponent.currentShieldHealth);
+                                enemyMaxShield += part.componentDefinition.shieldHealth;
+                            }
+                        });
+                        const enemyShieldPercent = enemyMaxShield > 0 ? ((enemyCurrentShield / enemyMaxShield) * 100).toFixed(0) : 0;
+                        if(this.sensedEnemyShieldDisplay) this.sensedEnemyShieldDisplay.textContent = `Shield Status: ${enemyShieldPercent}%`;
+
+                        let dominantWeapon = "None";
+                        const enemyWeaponPart = this.enemyBotBody.parts.slice(1).find(part =>
+                            part.componentDefinition && part.componentDefinition.category === 'weapon' && part.gameComponent && !part.gameComponent.destroyed
+                        );
+                        if (enemyWeaponPart) {
+                            dominantWeapon = enemyWeaponPart.componentDefinition.name;
+                        }
+                        if(this.sensedEnemyWeaponDisplay) this.sensedEnemyWeaponDisplay.textContent = dominantWeapon;
+                    } else {
+                        this.playerSensorDisplay.style.display = 'none'; // Hide if sensor got destroyed
+                        this.playerHasSensorArray = false; // Update flag
+                    }
+                } else if (this.playerSensorDisplay) {
+                    this.playerSensorDisplay.style.display = 'none';
+                }
             }
 
             handleCollisions(event) {
@@ -3737,9 +4035,75 @@
                             damageA += velocityDamage;
                             damageB += velocityDamage;
 
+                            // playSound('collision_impact_metal'); // Conceptual - General collision
+
                             // Apply damage, prioritizing shields
-                            this.applyDamageToBotPart(botPartA, damageA, botPartB); // botPartB is the attacker relative to A
-                            this.applyDamageToBotPart(botPartB, damageB, botPartA); // botPartA is the attacker relative to B
+                            this.applyDamageToBotPart(botPartA, damageA, botPartB);
+                            this.applyDamageToBotPart(botPartB, damageB, botPartA);
+
+                            // --- Impact Spark Particle Emission ---
+                            const collisionPairId = pair.id; // ID of the Matter.js pair
+                            const now = Date.now();
+                            // Throttle sparks per pair, more lenient for collisionStart
+                            const sparkThrottleTime = event.name === 'collisionActive' ? 50 : 10;
+
+                            if (now - (this.lastSparkTime[collisionPairId] || 0) >= sparkThrottleTime) {
+                                this.lastSparkTime[collisionPairId] = now;
+                                if (pair.collision && pair.collision.supports && pair.collision.supports.length > 0) {
+                                    const contactPoint = pair.collision.supports[0]; // A world coordinate
+                                    const numSparks = Math.min(5, Math.ceil(pair.collision.depth * 0.5 + (damageA + damageB) * 0.1)); // More sparks for deeper/harder collision
+
+                                    for (let i = 0; i < numSparks; i++) {
+                                        const angle = Math.random() * Math.PI * 2;
+                                        const speed = 30 + Math.random() * 70; // Adjusted speed
+                                        this.createParticle(
+                                            contactPoint.x,
+                                            contactPoint.y,
+                                            'spark',
+                                            {
+                                                vx: Math.cos(angle) * speed,
+                                                vy: Math.sin(angle) * speed,
+                                                size: 1 + Math.random() * 2.5, // Sparks are small
+                                                life: 80 + Math.random() * 180, // Short life
+                                                color: Math.random() < 0.7 ? 'var(--warning-yellow)' : '#ffffff' // Mix of yellow and white
+                                            }
+                                        );
+                                    }
+                                }
+                            }
+
+
+                            // --- Flamethrower Particle Emission ---
+                            [
+                                { attacker: botPartA, target: botPartB },
+                                { attacker: botPartB, target: botPartA }
+                            ].forEach(p => { // Renamed 'pair' to 'p' to avoid conflict with outer 'pair'
+                                if (p.attacker.componentDefinition && p.attacker.componentDefinition.type === 'flamethrower' && p.attacker.gameComponent && !p.attacker.gameComponent.destroyed) {
+                                    const now = Date.now();
+                                    if (!p.attacker.gameComponent.lastParticleEmitTime) p.attacker.gameComponent.lastParticleEmitTime = 0;
+
+                                    if (now - p.attacker.gameComponent.lastParticleEmitTime >= 100) {
+                                        // playSound('weapon_flamethrower_loop_start', {loopId: p.attacker.id }); // Conceptual - Start loop, use part id for tracking
+                                        p.attacker.gameComponent.lastParticleEmitTime = now;
+                                        const emitX = p.attacker.position.x;
+                                        const emitY = p.attacker.position.y;
+                                        const finalAngle = p.attacker.angle;
+
+                                        for (let i = 0; i < 3; i++) {
+                                            const spread = (Math.random() - 0.5) * 0.4;
+                                            const particleAngle = finalAngle + spread;
+                                            const speed = 20 + Math.random() * 20;
+                                            const particleVx = Math.cos(particleAngle) * speed;
+                                            const particleVy = Math.sin(particleAngle) * speed;
+                                            this.createParticle( emitX, emitY, 'flame', {
+                                                    life: 150 + Math.random() * 150,
+                                                    size: 4 + Math.random() * 4,
+                                                    vx: particleVx, vy: particleVy
+                                            });
+                                        }
+                                    }
+                                }
+                            });
                         }
                     }
                 });
@@ -3753,6 +4117,72 @@
                 const targetBot = targetPart.parent; // The compound body of the target
                 let remainingDamage = damageAmount;
 
+                // --- DOT Application for Flamethrower ---
+                if (attackingPart && attackingPart.componentDefinition && attackingPart.componentDefinition.type === 'flamethrower') {
+                    if (!targetPart.gameComponent.activeDOTs) {
+                        targetPart.gameComponent.activeDOTs = [];
+                    }
+                    const existingFlameDOT = targetPart.gameComponent.activeDOTs.find(d => d.sourceWeaponType === 'flamethrower');
+
+                    if (existingFlameDOT) {
+                        existingFlameDOT.ticksRemaining = Math.max(existingFlameDOT.ticksRemaining, 3); // Refresh to 3 ticks
+                        existingFlameDOT.lastTickTime = Date.now(); // Consider if refreshing lastTickTime is desired or just ticksRemaining
+                    } else {
+                        targetPart.gameComponent.activeDOTs.push({
+                            id: 'flame_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                            sourceWeaponType: 'flamethrower',
+                            damagePerTick: attackingPart.componentDefinition.damage || 2,
+                            ticksRemaining: 3,
+                            msPerTick: 300,
+                            lastTickTime: Date.now()
+                        });
+                    }
+                    remainingDamage = 0.1; // Flamethrower direct impact damage is very small, most is DOT
+                }
+                // --- End DOT Application ---
+
+                // --- Knockback for Spinner Blade ---
+                if (attackingPart && attackingPart.componentDefinition && attackingPart.componentDefinition.type === 'spinner-blade' && targetPart.parent) {
+                    // playSound('weapon_spinner_hit'); // Conceptual
+                    const directionX = targetPart.parent.position.x - attackingPart.parent.position.x;
+                    const directionY = targetPart.parent.position.y - attackingPart.parent.position.y;
+                    const magnitude = Math.sqrt(directionX * directionX + directionY * directionY);
+                    const normalizedX = magnitude > 0 ? directionX / magnitude : (Math.random() - 0.5) * 2; // Fallback to random if magnitude is 0
+                    const normalizedY = magnitude > 0 ? directionY / magnitude : (Math.random() - 0.5) * 2;
+
+                    const knockbackStrength = (attackingPart.componentDefinition.knockbackForce || 0.02) * attackingPart.parent.mass;
+                    // Apply force at the target part's position to induce spin and movement
+                    Matter.Body.applyForce(targetPart.parent, targetPart.position, {
+                        x: normalizedX * knockbackStrength,
+                        y: normalizedY * knockbackStrength
+                    });
+                    // Add some torque for a more chaotic effect
+                    const torque = (Math.random() - 0.5) * (attackingPart.componentDefinition.knockbackTorque || 0.01);
+                    Matter.Body.setAngularVelocity(targetPart.parent, targetPart.parent.angularVelocity + torque);
+                }
+                // --- End Knockback ---
+
+                // --- Stun for Hammer Arm ---
+                if (attackingPart && attackingPart.componentDefinition && attackingPart.componentDefinition.type === 'hammer-arm' && targetPart.parent) {
+                    // playSound('weapon_hammer_impact'); // Conceptual
+                    const STUN_DURATION_MS = attackingPart.componentDefinition.stunDuration || 1000;
+                    const targetBotBody = targetPart.parent;
+                    if (targetBotBody.customState) {
+                        targetBotBody.customState.isStunned = true;
+                        targetBotBody.customState.stunEndTime = Date.now() + STUN_DURATION_MS;
+                        // playSound('effect_stun_applied'); // Conceptual
+                        // Notifying from here can be spammy if called every collisionActive frame.
+                        // Consider a flag or cooldown for notification if this becomes an issue.
+                        // For now, showing it on first application is fine.
+                        if(!targetBotBody.customState.lastStunNotifyTime || Date.now() - targetBotBody.customState.lastStunNotifyTime > STUN_DURATION_MS + 500) {
+                            uiManager.showNotification(`${targetBotBody.label.replace('-bot-body','')} stunned!`, 'warning', STUN_DURATION_MS);
+                            targetBotBody.customState.lastStunNotifyTime = Date.now();
+                        }
+                    }
+                }
+                // --- End Stun ---
+
+
                 // 1. Check for active energy shields on the target bot
                 if (targetBot && targetBot.parts) {
                     const shieldParts = targetBot.parts.slice(1).filter(p =>
@@ -3764,27 +4194,35 @@
                     );
 
                     if (shieldParts.length > 0) {
-                        // For simplicity, pick the first active shield. Could be more complex (e.g. closest, or distribute)
                         const activeShield = shieldParts[0];
                         activeShield.gameComponent.shieldLastHitTime = Date.now();
 
                         if (remainingDamage <= activeShield.gameComponent.currentShieldHealth) {
                             activeShield.gameComponent.currentShieldHealth -= remainingDamage;
+                            if (damageAmount > 0) { // Only play sound if actual damage was absorbed before it became 0
+                                // playSound('effect_shield_absorb'); // Conceptual
+                            }
                             remainingDamage = 0;
                         } else {
+                            if (activeShield.gameComponent.currentShieldHealth > 0) {
+                                // playSound('effect_shield_absorb'); // Conceptual (shield took a partial hit before breaking/depleting)
+                            }
                             remainingDamage -= activeShield.gameComponent.currentShieldHealth;
                             activeShield.gameComponent.currentShieldHealth = 0;
-                            // Shield part itself might not be "destroyed" yet, just its current health depleted
                         }
                     }
                 }
 
                 // 2. If damage remains, apply to the component's durability
                 if (remainingDamage > 0) {
+                    // CONCEPTUAL: If attackingPart's bot has 'accuracy_boost' from a sensor-array,
+                    // damage could be slightly increased here, or crit chance applied.
+                    // e.g., if (botHasSensorAccuracyBoost(attackingPart.parent)) { remainingDamage *= 1.1; }
                     targetPart.gameComponent.durability -= remainingDamage;
                     if (targetPart.gameComponent.durability <= 0) {
                         targetPart.gameComponent.durability = 0;
                         targetPart.gameComponent.destroyed = true;
+                        // playSound('component_destroyed_explosion'); // Conceptual
                         targetPart.render.opacity = 0.3;
                         console.log(`${targetPart.label} (component ID: ${targetPart.gameComponent.id}) destroyed on ${targetBot.label}`);
 
@@ -3852,7 +4290,7 @@
 
             endBattle(winner) {
                 this.battleEnded = true;
-                if (this.runner) Matter.Runner.stop(this.runner); // Stop physics updates
+                if (this.runner) Matter.Runner.stop(this.runner);
 
                 const screen = document.getElementById('gameOverScreen');
                 const title = document.getElementById('gameOverTitle');
@@ -3868,531 +4306,23 @@
                     message.textContent = "Your bot has proven superior in combat!";
                     icon.textContent = "🏆";
                     title.className = 'win';
+                    // playSound('battle_victory_jingle'); // Conceptual
                 } else if (winner === 'enemy') {
                     title.textContent = "Defeat!";
                     message.textContent = "Your bot was overcome. Better luck next time!";
                     icon.textContent = "☠️";
                     title.className = 'lose';
+                    // playSound('battle_defeat_fanfare'); // Conceptual
                 } else { // Draw
                     title.textContent = "Draw!";
                     message.textContent = "The battle ended in a stalemate!";
                     icon.textContent = "🤝";
                     title.className = '';
+                    // playSound('battle_draw_sound'); // Conceptual
                 }
-                screen.style.display = 'flex'; // Show the game over screen
+                // stopMusic('battle_music_loop'); // Conceptual
+                screen.style.display = 'flex';
             }
 
-            updateAI() {
-                if (!this.enemyBotBody || !this.playerBotBody || !this.enemyBotBody.parts || this.enemyBotBody.parts.length <=1 ) return; // Second check for placeholder/fallback
-
-                const enemyPos = this.enemyBotBody.position;
-                const playerPos = this.playerBotBody.position;
-
-                const directionX = playerPos.x - enemyPos.x;
-                const directionY = playerPos.y - enemyPos.y;
-
-                const distance = Math.sqrt(directionX * directionX + directionY * directionY);
-                const pursuitThreshold = this.componentBodyScale * 5; // Start moving when player is within 5 grid units
-
-                if (distance < 10 || distance > pursuitThreshold * 5) { // Don't move if too close or too far
-                     Matter.Body.setVelocity(this.enemyBotBody, {x:0, y:0}); // Stop if too close or very far
-                    return;
-                }
-
-                if (distance < pursuitThreshold * 2 && distance > this.componentBodyScale * 1.5) { // Only move if player is somewhat close
-                    const normalizedX = directionX / distance;
-                    const normalizedY = directionY / distance;
-
-                    const forceMagnitude = 0.0005 * this.enemyBotBody.mass; // Make it quite weak for now
-                    const force = { x: normalizedX * forceMagnitude, y: normalizedY * forceMagnitude };
-
-                    // Apply force to the main body (center of mass)
-                    Matter.Body.applyForce(this.enemyBotBody, enemyPos, force);
-                }
-
-
-                // Optional: Basic rotation towards player
-                const targetAngle = Math.atan2(directionY, directionX);
-                let angleDifference = targetAngle - this.enemyBotBody.angle;
-                // Normalize angle difference to be between -PI and PI
-                while (angleDifference < -Math.PI) angleDifference += 2 * Math.PI;
-                while (angleDifference > Math.PI) angleDifference -= 2 * Math.PI;
-
-                const rotationSpeed = 0.0001 * this.enemyBotBody.mass;
-                if (Math.abs(angleDifference) > 0.1) { // Only rotate if significant difference
-                    Matter.Body.setAngularVelocity(this.enemyBotBody, Math.sign(angleDifference) * rotationSpeed);
-                } else {
-                    Matter.Body.setAngularVelocity(this.enemyBotBody, 0); // Dampen rotation
-                }
-            }
-
-            handlePlayerInput() {
-                if (!this.playerBotBody || !gameState) return;
-
-                const keys = gameState.state.input.keys;
-                const forceMagnitude = 0.005 * this.playerBotBody.mass; // Scale force by mass for consistent feel
-
-                let force = { x: 0, y: 0 };
-
-                if (keys['KeyW'] || keys['ArrowUp']) {
-                    force.y -= forceMagnitude;
-                }
-                if (keys['KeyS'] || keys['ArrowDown']) {
-                    force.y += forceMagnitude;
-                }
-                if (keys['KeyA'] || keys['ArrowLeft']) {
-                    force.x -= forceMagnitude;
-                }
-                if (keys['KeyD'] || keys['ArrowRight']) {
-                    force.x += forceMagnitude;
-                }
-
-                // Apply force only if there's movement input
-                if (force.x !== 0 || force.y !== 0) {
-                     Matter.Body.applyForce(this.playerBotBody, this.playerBotBody.position, force);
-                }
-
-                // Basic rotation for testing (Q/E keys)
-                const torqueMagnitude = 0.0005 * this.playerBotBody.mass;
-                 if (keys['KeyQ']) {
-                    Matter.Body.setAngularVelocity(this.playerBotBody, this.playerBotBody.angularVelocity - torqueMagnitude);
-                 }
-                 if (keys['KeyE']) {
-                    Matter.Body.setAngularVelocity(this.playerBotBody, this.playerBotBody.angularVelocity + torqueMagnitude);
-                 }
-            }
-
-            cleanup() {
-                console.log("Cleaning up battle...");
-                if (this.runner) {
-                    Matter.Runner.stop(this.runner);
-                    this.runner = null;
-                }
-                if (this.render) {
-                    Matter.Render.stop(this.render);
-                     if (this.render.canvas) {
-                        this.render.canvas.remove(); // Remove the canvas element
-                    }
-                    this.render = null;
-                    this.canvas = null;
-                }
-                if (this.engine) {
-                    Matter.Events.off(this.engine, 'beforeUpdate', this.gameLoop); // Remove event listener
-                    Matter.World.clear(this.engine.world, false); // False to keep static bodies if needed, but here we clear all
-                    Matter.Engine.clear(this.engine);
-                    this.engine = null;
-                }
-                this.playerBotBody = null;
-                this.enemyBotBody = null;
-
-                // Clear the battle arena div content just in case
-                const battleArena = document.getElementById('battleArena');
-                if (battleArena) {
-                    battleArena.innerHTML = '';
-                }
-                window.removeEventListener('resize', this.handleResize.bind(this)); // Remove resize listener
-                console.log("Battle cleanup complete.");
-            }
-
-            handleResize() {
-                const battleArena = document.getElementById('battleArena');
-                if (!this.render || !battleArena || !this.canvas) return;
-
-                this.render.bounds.max.x = battleArena.clientWidth;
-                this.render.bounds.max.y = battleArena.clientHeight;
-                this.render.options.width = battleArena.clientWidth;
-                this.render.options.height = battleArena.clientHeight;
-                this.canvas.width = battleArena.clientWidth;
-                this.canvas.height = battleArena.clientHeight;
-
-                // Update ground and walls based on new dimensions if they exist
-                if (this.engine && this.engine.world) {
-                    const staticBodies = Matter.Composite.allBodies(this.engine.world).filter(body => body.isStatic);
-                    const ground = staticBodies.find(body => body.label === 'Rectangle Body' && body.position.y > battleArena.clientHeight - 100); // Heuristic to find ground
-
-                    if (ground) {
-                        Matter.Body.setPosition(ground, { x: battleArena.clientWidth / 2, y: battleArena.clientHeight - 30 });
-                        Matter.Body.setVertices(ground, Matter.Vertices.fromPath(`L 0 0 L ${battleArena.clientWidth} 0 L ${battleArena.clientWidth} 60 L 0 60`));
-                    }
-                     // Similarly, update walls if they were created with specific labels or properties
-                }
-                console.log(`Battle Arena Resized to ${battleArena.clientWidth}x${battleArena.clientHeight}`);
-            }
-        }
-
-        // --- Drag/Drop and Viewport Manager ---
-        class ViewportManager {
-            constructor(gameState, gameManager) {
-                this.gameState = gameState;
-                this.gameManager = gameManager; // gameManager has updateCanvasTransform
-                this.uiManager = uiManager; // For adjustZoom
-
-                this.buildViewport = document.getElementById('buildViewport');
-                this.buildCanvas = document.getElementById('buildCanvas'); // Though gameManager updates this
-
-                this.isPanning = false;
-                this.lastPanPosition = { x: 0, y: 0 };
-
-                this.draggingComponentType = null;
-                this.dragPreviewElement = null;
-
-                this.isMovingComponent = false;
-                this.movingComponentInitialGrid = null; // Stores {gridX, gridY, componentId}
-                this.movedComponentOriginalData = null; // Stores full snapshot of component before move
-
-                this.setupEventListeners();
-                this.buildViewport.style.cursor = 'grab';
-            }
-
-            // --- Coordinate Transformation Helpers ---
-            getCanvasCoordinates(clientX, clientY) {
-                const viewportRect = this.buildViewport.getBoundingClientRect();
-                const uiState = this.gameState.state.ui;
-                // Adjust for viewport offset, then for pan, then for zoom
-                const x = (clientX - viewportRect.left - uiState.panOffset.x) / uiState.zoomLevel;
-                const y = (clientY - viewportRect.top - uiState.panOffset.y) / uiState.zoomLevel;
-                return { x, y };
-            }
-
-            getGridCoordinates(canvasX, canvasY) {
-                const gridX = Math.floor(canvasX / CONFIG.GRID_SIZE);
-                const gridY = Math.floor(canvasY / CONFIG.GRID_SIZE);
-                return { gridX, gridY };
-            }
-
-            setupEventListeners() {
-                this.buildViewport.addEventListener('mousedown', this.handleMouseDown.bind(this));
-                this.buildViewport.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                this.buildViewport.addEventListener('mouseup', this.handleMouseUp.bind(this));
-                this.buildViewport.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
-                this.buildViewport.addEventListener('wheel', this.handleWheel.bind(this));
-
-                // Drag from palette
-                document.querySelectorAll('.component-item').forEach(item => {
-                    item.draggable = true; // Ensure items are draggable
-                    item.addEventListener('dragstart', this.handlePaletteDragStart.bind(this));
-                });
-                document.addEventListener('dragend', this.handleDragEnd.bind(this)); // Listen on document for robust cleanup
-
-                // Drop on viewport
-                this.buildViewport.addEventListener('dragover', this.handleDragOver.bind(this));
-                this.buildViewport.addEventListener('dragleave', this.handleDragLeave.bind(this));
-                this.buildViewport.addEventListener('drop', this.handleDrop.bind(this));
-            }
-
-            // --- Drag and Drop Handlers ---
-            handlePaletteDragStart(event) {
-                const componentItem = event.target.closest('.component-item');
-                if (!componentItem) return;
-                const componentType = componentItem.dataset.component;
-                if (!componentType) return;
-
-                event.dataTransfer.setData('text/plain', componentType);
-                event.dataTransfer.effectAllowed = 'copy';
-                this.draggingComponentType = componentType;
-
-                if (this.dragPreviewElement) this.dragPreviewElement.remove();
-                this.dragPreviewElement = document.createElement('div');
-                // Use 'dragging' class for fixed position and base style, component-item for looks
-                this.dragPreviewElement.className = 'component-item dragging';
-
-                this.dragPreviewElement.innerHTML = componentItem.innerHTML;
-                this.dragPreviewElement.style.width = `${componentItem.offsetWidth}px`;
-                this.dragPreviewElement.style.height = `${componentItem.offsetHeight}px`;
-                this.dragPreviewElement.style.pointerEvents = 'none'; // Ensure it doesn't interfere with other mouse events
-
-                document.body.appendChild(this.dragPreviewElement);
-                this.updateDragPreviewPosition(event);
-            }
-
-            updateDragPreviewPosition(event) {
-                if (this.dragPreviewElement) {
-                    // Position relative to the viewport, not page, for fixed behavior
-                    this.dragPreviewElement.style.left = `${event.clientX + 5}px`;
-                    this.dragPreviewElement.style.top = `${event.clientY + 5}px`;
-                }
-            }
-
-            handleDragEnd(event) {
-                if (this.dragPreviewElement) {
-                    this.dragPreviewElement.remove();
-                    this.dragPreviewElement = null;
-                }
-                this.draggingComponentType = null;
-                // Reset any global drag styles if necessary
-                this.buildViewport.classList.remove('drag-over');
-            }
-
-            handleDragOver(event) {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'copy';
-                if (this.dragPreviewElement) {
-                    this.updateDragPreviewPosition(event);
-                }
-                this.buildViewport.classList.add('drag-over'); // Visual feedback
-            }
-
-            handleDragLeave(event) {
-                // Check if the mouse truly left the viewport or just entered a child element
-                if (event.relatedTarget && !this.buildViewport.contains(event.relatedTarget)) {
-                    this.buildViewport.classList.remove('drag-over');
-                } else if (!event.relatedTarget) { // Mouse left window
-                     this.buildViewport.classList.remove('drag-over');
-                }
-            }
-
-            handleDrop(event) {
-                event.preventDefault();
-                this.buildViewport.classList.remove('drag-over');
-                const componentType = event.dataTransfer.getData('text/plain') || this.draggingComponentType;
-
-                if (componentType) {
-                    const canvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
-                    const gridCoords = this.getGridCoordinates(canvasCoords.x, canvasCoords.y);
-
-                    this.gameManager.placeComponent(componentType, gridCoords.gridX, gridCoords.gridY);
-                }
-                this.handleDragEnd(event);
-            }
-
-            handleMouseDown(event) {
-                // Pan with middle mouse button (button === 1) or Alt + Left Click
-                // Ensure not trying to pan when a rotate tool might be active with Alt
-                if (event.button === 1 || (event.button === 0 && event.altKey && this.gameState.state.ui.activeTool !== 'rotate')) {
-                    event.preventDefault();
-                    this.isPanning = true;
-                    this.lastPanPosition = { x: event.clientX, y: event.clientY };
-                    this.buildViewport.style.cursor = 'grabbing';
-                    return; // Don't process selection if panning started
-                }
-
-                // Left click for selection/deselection
-                if (event.button === 0 && (this.gameState.state.ui.activeTool === 'place' || this.gameState.state.ui.activeTool === 'select')) {
-                    const canvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
-                    const gridCoords = this.getGridCoordinates(canvasCoords.x, canvasCoords.y);
-
-                    const clickedComponentInstance = this.gameState.state.bot.components.find(
-                        comp => comp.gridX === gridCoords.gridX && comp.gridY === gridCoords.gridY
-                    );
-
-                    if (clickedComponentInstance) {
-                        // Basic selection: replace current selection
-                        // TODO: Multi-select with Shift key can be added later
-                        if (this.gameState.state.ui.selectedComponents.includes(clickedComponentInstance.id)) {
-                            // If already selected and it's the only one, deselect. Otherwise, make it the only selection.
-                            // For now, just re-select it or clear others if implementing multi-select later.
-                            // Simple toggle for single selection for now:
-                            // this.gameState.state.ui.selectedComponents = []; // Clears selection if clicking already selected.
-                            // OR always make it the selection:
-                            this.gameState.state.ui.selectedComponents = [clickedComponentInstance.id];
-
-                    // If a component is selected, prepare for potential move
-                    this.isMovingComponent = true;
-                    this.movingComponentInitialGrid = {
-                        gridX: clickedComponentInstance.gridX,
-                        gridY: clickedComponentInstance.gridY,
-                        id: clickedComponentInstance.id
-                    };
-                    // Deep copy for history/revert
-                    this.movedComponentOriginalData = JSON.parse(JSON.stringify(clickedComponentInstance));
-
-                    // Create a preview for moving (similar to drag from palette)
-                    if (this.dragPreviewElement) this.dragPreviewElement.remove();
-                    this.dragPreviewElement = document.createElement('div');
-                    const compDef = COMPONENTS[clickedComponentInstance.type];
-                    this.dragPreviewElement.className = 'component-item dragging'; // Re-use dragging style
-                    this.dragPreviewElement.style.background = compDef.color; // Set background color
-                    this.dragPreviewElement.textContent = uiManager.getComponentAbbreviation(clickedComponentInstance.type);
-                    this.dragPreviewElement.style.width = `${CONFIG.GRID_SIZE * this.gameState.state.ui.zoomLevel}px`; // Preview at current zoom
-                    this.dragPreviewElement.style.height = `${CONFIG.GRID_SIZE * this.gameState.state.ui.zoomLevel}px`;
-                    this.dragPreviewElement.style.pointerEvents = 'none';
-                    document.body.appendChild(this.dragPreviewElement);
-                    this.updateDragPreviewPosition(event); // Position it at mouse
-
-                    // Optionally, make the original component semi-transparent
-                    const originalElement = document.getElementById(`component-${clickedComponentInstance.id}`);
-                    if (originalElement) originalElement.style.opacity = '0.5';
-
-                        } else {
-                            this.gameState.state.ui.selectedComponents = [clickedComponentInstance.id];
-                        }
-                    } else {
-                        // Clicked on empty space, clear selection
-                        this.gameState.state.ui.selectedComponents = [];
-                    }
-            this.gameManager.renderBot(); // Re-render to show selection changes (or opacity change)
-                }
-            }
-
-            handleMouseMove(event) {
-        if (this.isMovingComponent) {
-            event.preventDefault();
-            if (this.dragPreviewElement) {
-                this.updateDragPreviewPosition(event);
-            }
-            // Optional: Highlight grid cell under preview
-        } else if (this.isPanning) { // Ensure else if, so not both
-                    event.preventDefault();
-                    const dx = event.clientX - this.lastPanPosition.x;
-                    const dy = event.clientY - this.lastPanPosition.y;
-
-                    this.gameState.state.ui.panOffset.x += dx;
-                    this.gameState.state.ui.panOffset.y += dy;
-
-                    this.lastPanPosition = { x: event.clientX, y: event.clientY };
-                    this.gameManager.updateCanvasTransform();
-                }
-            }
-
-            handleMouseUp(event) {
-                if (this.isMovingComponent) {
-                    event.preventDefault();
-                    const targetCanvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
-                    const targetGridCoords = this.getGridCoordinates(targetCanvasCoords.x, targetCanvasCoords.y);
-
-                    const componentToMove = this.gameState.state.bot.components.find(c => c.id === this.movingComponentInitialGrid.id);
-
-                    // Reset visual opacity of original component before potential re-render
-                    const originalElement = document.getElementById(`component-${this.movingComponentInitialGrid.id}`);
-                    if (originalElement) originalElement.style.opacity = '1';
-
-                    // Validation
-                    let isValidMove = true;
-                    if (targetGridCoords.gridX === this.movedComponentOriginalData.gridX && targetGridCoords.gridY === this.movedComponentOriginalData.gridY) {
-                        isValidMove = false; // No actual move occurred, just a click
-                        // No notification needed, just reset state. Selection remains.
-                    } else if (this.gameState.state.bot.components.some(c => c.id !== componentToMove.id && c.gridX === targetGridCoords.gridX && c.gridY === targetGridCoords.gridY)) {
-                        uiManager.showNotification('Invalid move: Target location is occupied.', 'warning');
-                        isValidMove = false;
-                    } else if (!this.gameManager.isConnectedToBot(targetGridCoords.gridX, targetGridCoords.gridY, this.gameState.state.bot.components, componentToMove.id)) {
-                        uiManager.showNotification('Invalid move: Component would be disconnected.', 'warning');
-                        isValidMove = false;
-                    }
-
-
-                    if (isValidMove && componentToMove) {
-                        // Store snapshot before actual change for history
-                        const originalDataForHistory = JSON.parse(JSON.stringify(this.movedComponentOriginalData));
-
-                        // Update component's position
-                        componentToMove.gridX = targetGridCoords.gridX;
-                        componentToMove.gridY = targetGridCoords.gridY;
-
-                        // Add to history using the state *before* this move (movedComponentOriginalData)
-                        // and the state *after* this move (the current state of componentToMove)
-                        this.gameManager.addHistoryActionForMove(originalDataForHistory, componentToMove);
-
-                        this.gameState.updateBotStats(); // Recalculate stats if needed (mass distribution, etc. - not critical now)
-                        this.gameManager.renderBot();    // Re-render all components
-                        uiManager.showNotification('Component moved.', 'info');
-                    } else if (!isValidMove && !(targetGridCoords.gridX === this.movedComponentOriginalData.gridX && targetGridCoords.gridY === this.movedComponentOriginalData.gridY)) {
-                        // Move was invalid and it wasn't just a click on the same spot, so re-render to restore opacity
-                        this.gameManager.renderBot();
-                    }
-                    // Else (it was just a click on the same spot), selection is handled, no further action needed.
-
-                    // Cleanup move state
-                    this.isMovingComponent = false;
-                    this.movingComponentInitialGrid = null;
-                    this.movedComponentOriginalData = null;
-                    if (this.dragPreviewElement) {
-                        this.dragPreviewElement.remove();
-                        this.dragPreviewElement = null;
-                    }
-                } else if (this.isPanning) {
-                    this.isPanning = false;
-                    this.buildViewport.style.cursor = 'grab';
-                }
-                // Note: Selection state is preserved if it was just a click, or cleared by other actions.
-            }
-
-            handleMouseLeave(event) { // Also stop panning or moving if mouse leaves viewport
-                if (this.isPanning) {
-                    this.isPanning = false;
-                    this.buildViewport.style.cursor = 'grab';
-                }
-                if (this.isMovingComponent) {
-                    // Cancel the move, restore original component's visual state
-                    const originalElement = document.getElementById(`component-${this.movingComponentInitialGrid.id}`);
-                    if (originalElement) originalElement.style.opacity = '1';
-
-                    this.isMovingComponent = false;
-                    this.movingComponentInitialGrid = null;
-                    this.movedComponentOriginalData = null;
-                    if (this.dragPreviewElement) {
-                        this.dragPreviewElement.remove();
-                        this.dragPreviewElement = null;
-                    }
-                    this.gameManager.renderBot(); // Re-render to ensure visual consistency
-                    uiManager.showNotification('Move cancelled: mouse left build area.', 'info');
-                }
-            }
-
-            handleWheel(event) {
-                event.preventDefault();
-                const delta = event.deltaY > 0 ? -CONFIG.ZOOM_STEP : CONFIG.ZOOM_STEP;
-                // Pass the mouse position for zoom-to-cursor later if uiManager.adjustZoom supports it
-                // For now, uiManager.adjustZoom zooms to center (based on transform-origin)
-                this.uiManager.adjustZoom(delta);
-            }
-        }
-
-        // --- Main Initialization ---
-        const gameState = new GameStateManager();
-        const uiManager = new UIManager(gameState);
-        const battleManager = new BattleManager(); // Instantiated
-        const gameManager = new GameManager(); // GameManager might use battleManager
-        const viewportManager = new ViewportManager(gameState, gameManager);
-        
-        // Startup
-        gameManager.renderBot();
-        uiManager.updateHistoryButtons();
-        uiManager.updateStatsDisplay(gameState.state.bot);
-        
-        // Initial welcome
-        setTimeout(() => {
-            uiManager.showNotification('Welcome to Bot Forge & Fight! Start by placing a Control Unit.', 'info', 5000);
-        }, 1000);
-        
-        // Automatically load bot if available
-        if (localStorage.getItem(CONFIG.SAVE_SLOT_KEY)) {
-            setTimeout(() => gameManager.loadBot(), 1500);
-        }
-
-    </script>
-
-    <!-- Settings Modal HTML (placed before closing body tag) -->
-    <div class="modal-overlay" id="settingsModalOverlay" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 class="modal-title" id="settingsModalTitle" style="margin-bottom: 0;">Game Settings</h3>
-                <button id="settingsCloseBtn" style="background:none; border:none; font-size: 24px; color:var(--text-secondary); cursor:pointer; padding:0;">&times;</button>
-            </div>
-            <div class="modal-body" id="settingsModalBody" style="text-align: left;">
-                <div class="setting-item">
-                    <label for="masterVolume">Master Volume:</label>
-                    <input type="range" id="masterVolume" name="masterVolume" min="0" max="100" value="80" class="settings-input">
-                </div>
-                <div class="setting-item">
-                    <label for="enableParticles">Enable Particle Effects:</label>
-                    <input type="checkbox" id="enableParticles" name="enableParticles" checked class="settings-input" style="height: auto;">
-                </div>
-                <div class="setting-item">
-                    <label for="themeSelect">UI Theme:</label>
-                    <select id="themeSelect" name="themeSelect" class="settings-input">
-                        <option value="dark_blue">Dark Blue (Default)</option>
-                        <option value="light_mode" disabled>Light Mode (Coming Soon)</option>
-                    </select>
-                </div>
-                 <div class="setting-item" style="margin-top: 20px;">
-                    <label for="resetTutorials">Reset In-Game Tutorials:</label>
-                    <button class="btn btn-secondary btn-small" id="resetTutorialsBtn" style="padding: 8px 12px; font-size: 12px;">Reset Tutorials</button>
-                </div>
-            </div>
-            <div class="modal-actions" style="margin-top: 30px;">
-                <button class="btn btn-primary" id="settingsApplyBtn">Apply & Close</button>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+            updateShields(deltaTime) {
+>>>>>>> REPLACE
