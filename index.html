@@ -1535,6 +1535,96 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--secondary-blue);
         }
+
+        /* Notification Panel CSS */
+        .notification-panel {
+            position: absolute;
+            top: 60px; /* Adjusted for header */
+            right: 0px; /* Align with notification bell's parent (header-right) */
+            width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: var(--dark-elevated);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-heavy);
+            z-index: 2000;
+            padding: 0;
+            display: none;
+            color: var(--text-secondary);
+        }
+        .notification-panel-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: default;
+            transition: background-color 0.2s ease;
+        }
+        .notification-panel-item:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+        .notification-panel-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .notification-item-message {
+            flex-grow: 1;
+            line-height: 1.4;
+        }
+        .notification-item-timestamp {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Settings Modal Specific CSS */
+        .setting-item {
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--glass-bg);
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .setting-item label {
+            flex-basis: 45%;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .settings-input {
+            flex-basis: 50%;
+            padding: 10px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Exo 2', sans-serif;
+            font-size: 14px;
+        }
+        select.settings-input {
+            height: 42px;
+        }
+        input[type="checkbox"].settings-input {
+            width: auto;
+            flex-basis: auto;
+            transform: scale(1.3);
+            cursor: pointer;
+        }
+        input[type="range"].settings-input {
+            padding: 0;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -1570,10 +1660,10 @@
                 </div>
             </div>
             
-            <div class="header-right">
+            <div class="header-right" style="position: relative;"> <!-- Added relative positioning for panel -->
                 <div class="notification-indicator" title="Notifications">
                     <span class="btn-icon">🔔</span>
-                    <div class="notification-badge">3</div>
+                    <div class="notification-badge" style="display: none;">0</div> <!-- Badge count starts at 0 and hidden -->
                 </div>
                 <button class="toolbar-btn" id="settingsBtn" title="Game Settings">
                     <span class="btn-icon">⚙️</span>
@@ -1967,6 +2057,8 @@
                         <div class="health-fill" id="playerHealth" style="background-position: 0% 0%;"></div>
                     </div>
                     <div class="health-text" id="playerHealthText">100 / 100 HP</div>
+                    <div class="shield-bar" id="playerShieldBar" style="height: 8px; background: #0096FF; border-radius: 4px; margin-top: 4px; width: 0%; transition: width 0.3s ease;"></div>
+                    <div class="health-text" id="playerShieldText" style="font-size: 9px;">0 / 0 SHP</div>
                 </div>
                 
                 <div class="battle-timer" id="battleTimer">03:00</div>
@@ -1978,6 +2070,8 @@
                         <div class="health-fill" id="enemyHealth" style="background-position: 0% 0%;"></div>
                     </div>
                     <div class="health-text" id="enemyHealthText">100 / 100 HP</div>
+                    <div class="shield-bar" id="enemyShieldBar" style="height: 8px; background: #0096FF; border-radius: 4px; margin-top: 4px; width: 0%; transition: width 0.3s ease;"></div>
+                    <div class="health-text" id="enemyShieldText" style="font-size: 9px;">0 / 0 SHP</div>
                 </div>
             </div>
 
@@ -2080,6 +2174,198 @@
     </div>
 
     <script type="module">
+        // --- CONCEPTUAL UNIT TESTS ---
+        // The following are outlines for unit tests. In a full dev environment,
+        // these would be in separate files using a test runner like Jest or Mocha.
+        // For now, they use console.assert for basic validation.
+
+        /*
+        // Test Suite: GameStateManager.updateBotStats()
+
+        function testUpdateBotStats() {
+            console.log('Running conceptual tests for GameStateManager.updateBotStats()...');
+            const gsm = new GameStateManager(); // Assuming simple instantiation
+
+            // Mock COMPONENTS for this test scope
+            const originalGlobalComponents = window.COMPONENTS; // Save original
+            const testComponentsData = {
+                'test-core': { name: 'Test Core', type: 'core', category: 'core', mass: 10, durability: 100, powerDraw: -100, combatRating: 10 },
+                'test-weapon': { name: 'Test Weapon', type: 'weapon', category: 'weapon', mass: 5, durability: 50, powerDraw: 20, combatRating: 20, damage: 10 },
+                'test-power': { name: 'Test Power', type: 'power', category: 'power', mass: 8, durability: 30, powerDraw: -50, combatRating: 5 }
+            };
+            // If COMPONENTS is already defined globally, we need to assign to it.
+            // If it's imported/scoped, this approach would need adjustment (e.g., dependency injection for tests).
+            // For this conceptual test, we assume window.COMPONENTS or direct modification is possible.
+            const actualComponentsRef = (typeof COMPONENTS !== 'undefined') ? COMPONENTS : null;
+            if (actualComponentsRef) Object.assign(actualComponentsRef, testComponentsData);
+
+
+            // Test Case 1: Empty bot
+            gsm.state.bot.components = [];
+            gsm.updateBotStats();
+            console.assert(gsm.state.bot.totalWeight === 0, 'Test Case 1 Failed: Empty bot weight');
+            console.assert(gsm.state.bot.powerUsage === 0, 'Test Case 1 Failed: Empty bot power usage');
+            console.assert(gsm.state.bot.powerCapacity === 0, 'Test Case 1 Failed: Empty bot power capacity');
+            console.assert(gsm.state.bot.combatRating === 0, 'Test Case 1 Failed: Empty bot combat rating');
+
+            // Test Case 2: Bot with components
+            gsm.state.bot.components = [
+                { type: 'test-core', id: 1, gridX: 0, gridY: 0, durability: 100 },
+                { type: 'test-weapon', id: 2, gridX: 0, gridY: 1, durability: 50 },
+                { type: 'test-power', id: 3, gridX: 1, gridY: 0, durability: 30 }
+            ];
+            gsm.updateBotStats(); // Assumes COMPONENTS is accessible within updateBotStats
+            console.assert(gsm.state.bot.totalWeight === (10 + 5 + 8), 'Test Case 2 Failed: Populated bot weight. Expected 23, got ' + gsm.state.bot.totalWeight);
+            console.assert(gsm.state.bot.powerUsage === 20, 'Test Case 2 Failed: Populated bot power usage. Expected 20, got ' + gsm.state.bot.powerUsage);
+            console.assert(gsm.state.bot.powerCapacity === (100 + 50), 'Test Case 2 Failed: Populated bot power capacity. Expected 150, got ' + gsm.state.bot.powerCapacity); // Core (-100) + Power (-50)
+            console.assert(gsm.state.bot.combatRating === (10 + 20 + 5), 'Test Case 2 Failed: Populated bot combat rating. Expected 35, got ' + gsm.state.bot.combatRating);
+
+            if (actualComponentsRef) Object.assign(actualComponentsRef, originalGlobalComponents); // Restore original COMPONENTS
+            console.log('Finished conceptual tests for GameStateManager.updateBotStats().');
+        }
+
+        // To run these tests (conceptually, after classes are defined):
+        // if (typeof GameStateManager !== 'undefined' && typeof COMPONENTS !== 'undefined') { testUpdateBotStats(); }
+        */
+
+        /*
+        // Test Suite: GameManager.canPlaceComponent()
+
+        function testCanPlaceComponent() {
+            console.log('Running conceptual tests for GameManager.canPlaceComponent()...');
+            // Mocking would be extensive here. Example concepts:
+            // const mockGameState = new GameStateManager(); // Or a more controlled mock
+            // const mockUiManager = { showNotification: () => {} }; // Mock UIManager
+            // const gm = new GameManager(); // GameManager constructor might need gameState, uiManager if they were injected
+            // For current structure, gm uses global gameState and uiManager.
+
+            // const originalGlobalComponents = JSON.parse(JSON.stringify(window.COMPONENTS || COMPONENTS));
+            // const originalGlobalConfig = JSON.parse(JSON.stringify(window.CONFIG || CONFIG));
+            // const testComponents = {
+            //     'control-unit': { name: 'Control Unit', type: 'core', category: 'core', mass: 2, durability: 100, powerDraw: -50, required: true, maxCount: 1 },
+            //     'test-weapon': { name: 'Test Weapon', type: 'weapon', category: 'weapon', mass: 5, durability: 50, powerDraw: 20 },
+            //     'heavy-comp': { name: 'Heavy Component', type: 'structure', category: 'structure', mass: 50, durability: 100 }
+            // };
+            // if (typeof COMPONENTS !== 'undefined') Object.assign(COMPONENTS, testComponents); else window.COMPONENTS = testComponents;
+            // if (typeof CONFIG !== 'undefined') CONFIG.MAX_WEIGHT = 50; else window.CONFIG = { MAX_WEIGHT: 50, GRID_SIZE: 40 };
+
+
+            // Test Case 1: Placing on an occupied cell. (Should return false)
+            // gameState.state.bot.components = [{ type: 'control-unit', gridX: 1, gridY: 1, id:1, durability:100 }];
+            // gameManager.updateCanvasTransform(); // To ensure pan/zoom are neutral if they affect calculations
+            // console.assert(gameManager.canPlaceComponent('test-weapon', 1, 1) === false, 'Test Case 1 Failed: Occupied cell');
+
+            // Test Case 2: Exceeding max count for a component (e.g., control-unit).
+            // gameState.state.bot.components = [{ type: 'control-unit', gridX: 0, gridY: 0, id:1, durability:100 }];
+            // console.assert(gameManager.canPlaceComponent('control-unit', 1, 1) === false, 'Test Case 2 Failed: Max count exceeded');
+
+            // Test Case 3: Exceeding max weight.
+            // gameState.state.bot.components = [{ type: 'control-unit', gridX: 0, gridY: 0, id:1, durability:100, mass: 2 }]; // Assume mass is part of component instance or looked up
+            // gameState.updateBotStats(); // To set totalWeight
+            // console.assert(gameManager.canPlaceComponent('heavy-comp', 0, 1) === false, 'Test Case 3 Failed: Max weight exceeded. Current: ' + gameState.state.bot.totalWeight);
+
+            // Test Case 4: Placing first component (must be control unit).
+            // gameState.state.bot.components = [];
+            // gameState.updateBotStats();
+            // console.assert(gameManager.canPlaceComponent('test-weapon', 0, 0) === false, 'Test Case 4a Failed: First not control unit');
+            // console.assert(gameManager.canPlaceComponent('control-unit', 0, 0) === true, 'Test Case 4b Failed: First is control unit');
+
+            // Test Case 5: Placing component disconnected from bot structure.
+            // gameState.state.bot.components = [{ type: 'control-unit', gridX: 0, gridY: 0, id:1, durability:100 }];
+            // gameState.updateBotStats();
+            // console.assert(gameManager.canPlaceComponent('test-weapon', 5, 5) === false, 'Test Case 5 Failed: Disconnected component');
+
+            // Test Case 6: Valid placement.
+            // gameState.state.bot.components = [{ type: 'control-unit', gridX: 0, gridY: 0, id:1, durability:100 }];
+            // gameState.updateBotStats();
+            // console.assert(gameManager.canPlaceComponent('test-weapon', 0, 1) === true, 'Test Case 6 Failed: Valid placement');
+
+            // if (typeof COMPONENTS !== 'undefined') Object.assign(COMPONENTS, originalGlobalComponents); else window.COMPONENTS = originalGlobalComponents;
+            // if (typeof CONFIG !== 'undefined') Object.assign(CONFIG, originalGlobalConfig); else window.CONFIG = originalGlobalConfig;
+            console.log('Finished conceptual tests for GameManager.canPlaceComponent(). Needs actual mocking to run.');
+        }
+        // if (typeof GameManager !== 'undefined' && typeof GameStateManager !== 'undefined' && typeof COMPONENTS !== 'undefined' && typeof CONFIG !== 'undefined' && typeof uiManager !== 'undefined') {
+        //     setTimeout(testCanPlaceComponent, 100); // Delay to ensure other initializations
+        // }
+        */
+
+        /*
+        // Test Suite: BattleManager Damage Logic
+
+        function testBattleManagerDamage() {
+            console.log('Running conceptual tests for BattleManager Damage Logic...');
+            // Mocking for BattleManager is also complex.
+            // const bm = new BattleManager(); // Assumes global gameState
+            // const originalGlobalComponents = JSON.parse(JSON.stringify(window.COMPONENTS || COMPONENTS));
+            // const testComponents = {
+            //     'test-structure': { name: 'Test Structure', durability: 100, category: 'structure', mass: 1 },
+            //     'test-weapon': { name: 'Test Weapon', damage: 20, category: 'weapon', mass: 1, durability: 50 },
+            //     'energy-shield': { name: 'Energy Shield', shieldHealth: 100, shieldRegen: 5, category: 'utility', type: 'energy-shield', mass:1, durability: 50 }
+            // };
+            // if (typeof COMPONENTS !== 'undefined') Object.assign(COMPONENTS, testComponents); else window.COMPONENTS = testComponents;
+
+            // // Mock bot parts: Matter.js parts would have a 'parent' pointing to the compound body.
+            // // The gameComponent would be attached to the Matter.js part.
+
+            // // Setup a target part and an attacker part
+            // const targetGameComponent = { type: 'test-structure', id: 'target1', durability: 100, destroyed: false };
+            // const targetPart = {
+            //     parent: { id: 'playerBotBody', parts: [] }, // Mock parent compound body
+            //     gameComponent: targetGameComponent,
+            //     componentDefinition: COMPONENTS['test-structure'],
+            //     render: { opacity: 1 }, // Mock render object
+            //     label: 'target-structure-part'
+            // };
+            // targetPart.parent.parts.push(targetPart); // Add self to parent's parts list for shield search
+
+            // const attackerGameComponent = { type: 'test-weapon', id: 'attacker1', durability: 50 };
+            // const attackingPart = {
+            //     parent: { id: 'enemyBotBody', parts: [] },
+            //     gameComponent: attackerGameComponent,
+            //     componentDefinition: COMPONENTS['test-weapon'],
+            //     label: 'attacker-weapon-part'
+            // };
+            // attackingPart.parent.parts.push(attackingPart);
+
+            // // Test Case 1: Basic damage to component (no shield).
+            // bm.applyDamageToBotPart(targetPart, 30, attackingPart);
+            // console.assert(targetGameComponent.durability === 70, 'Test Case 1 Failed: Basic damage. Expected 70, got ' + targetGameComponent.durability);
+
+            // // Test Case 2: Damage with shield absorption.
+            // targetGameComponent.durability = 100; // Reset
+            // const shieldGameComponent = { type: 'energy-shield', id: 'shield1', durability: 50, currentShieldHealth: 40, shieldLastHitTime: 0, destroyed: false };
+            // const shieldPart = {
+            //     parent: targetPart.parent, // Same bot
+            //     gameComponent: shieldGameComponent,
+            //     componentDefinition: COMPONENTS['energy-shield'],
+            //     render: { opacity: 1 },
+            //     label: 'shield-part'
+            // };
+            // targetPart.parent.parts.push(shieldPart); // Add shield to player bot
+
+            // bm.applyDamageToBotPart(targetPart, 50, attackingPart); // 50 damage
+            // console.assert(shieldGameComponent.currentShieldHealth === 0, 'Test Case 2a Failed: Shield depleted. Expected 0, got ' + shieldGameComponent.currentShieldHealth);
+            // console.assert(targetGameComponent.durability === (100 - (50 - 40)), 'Test Case 2b Failed: Remaining damage to component. Expected 90, got ' + targetGameComponent.durability);
+            // console.assert(shieldGameComponent.shieldLastHitTime > 0, 'Test Case 2c Failed: Shield last hit time not updated.');
+
+            // // Test Case 3: Component destruction.
+            // targetGameComponent.durability = 10;
+            // shieldGameComponent.currentShieldHealth = 0; // Ensure shield is down
+            // bm.applyDamageToBotPart(targetPart, 15, attackingPart);
+            // console.assert(targetGameComponent.durability === 0, 'Test Case 3a Failed: Component durability to zero');
+            // console.assert(targetGameComponent.destroyed === true, 'Test Case 3b Failed: Component marked destroyed');
+            // console.assert(targetPart.render.opacity < 1, 'Test Case 3c Failed: Component opacity not changed');
+
+            // targetPart.parent.parts = [targetPart]; // Clean up shield for next test if any
+
+            // if (typeof COMPONENTS !== 'undefined') Object.assign(COMPONENTS, originalGlobalComponents); else window.COMPONENTS = originalGlobalComponents;
+            console.log('Finished conceptual tests for BattleManager Damage Logic. Needs actual mocking and Matter.Body parts.');
+        }
+        // if (typeof BattleManager !== 'undefined' && typeof GameStateManager !== 'undefined' && typeof COMPONENTS !== 'undefined') {
+        //    setTimeout(testBattleManagerDamage, 200); // Delay for other initializations
+        // }
+        */
+
         // --- Enhanced Game Constants and Configuration ---
         const CONFIG = {
             GRID_SIZE: 40,
@@ -2179,16 +2465,36 @@
             canUndo() { return this.state.history.currentIndex >= 0; }
             canRedo() { return this.state.history.currentIndex < this.state.history.actions.length - 1; }
 
-            applyHistoryState(state) {
-                this.state.bot.components = state.map(c => ({...c}));
-                this.updateBotStats();
-                this.emit('botDesignChanged');
+            applyHistoryState(data, actionType) { // Added actionType to guide how 'data' is interpreted
+                if (actionType === 'move_component') {
+                    // For 'move_component', 'data' is an object like { id, gridX, gridY }
+                    const componentId = data.id;
+                    const componentIndex = this.state.bot.components.findIndex(c => c.id === componentId);
+                    if (componentIndex !== -1) {
+                        // Update only relevant properties for a move
+                        this.state.bot.components[componentIndex].gridX = data.gridX;
+                        this.state.bot.components[componentIndex].gridY = data.gridY;
+                        // If other properties were part of 'before'/'after' in move_component, update them here too
+                        // For instance, if the 'data' object contains more than just id, gridX, gridY, spread it:
+                        // this.state.bot.components[componentIndex] = { ...this.state.bot.components[componentIndex], ...data };
+                    } else {
+                        console.warn(`Undo/Redo Move: Component ID ${componentId} not found.`);
+                    }
+                } else if (Array.isArray(data)) {
+                    // For 'add', 'delete_components', 'clear', 'load', 'randomize', 'data' is the full components array
+                    this.state.bot.components = data.map(c => ({...c}));
+                } else {
+                     console.error("ApplyHistoryState: Unknown data format or missing/unhandled actionType", data, actionType);
+                }
+                this.updateBotStats(); // Recalculate stats based on (potentially) changed components
+                this.emit('botDesignChanged'); // Triggers GameManager to re-render the bot
             }
 
             undo() {
                 if (!this.canUndo()) return false;
                 const action = this.state.history.actions[this.state.history.currentIndex];
-                this.applyHistoryState(action.before);
+                // Pass the 'before' state and the action type to applyHistoryState
+                this.applyHistoryState(action.before, action.type);
                 this.state.history.currentIndex--;
                 this.emit('historyUpdated', this.state.history);
                 return true;
@@ -2198,7 +2504,8 @@
                 if (!this.canRedo()) return false;
                 this.state.history.currentIndex++;
                 const action = this.state.history.actions[this.state.history.currentIndex];
-                this.applyHistoryState(action.after);
+                // Pass the 'after' state and the action type to applyHistoryState
+                this.applyHistoryState(action.after, action.type);
                 this.emit('historyUpdated', this.state.history);
                 return true;
             }
@@ -2209,9 +2516,37 @@
             constructor(gameState) {
                 this.gameState = gameState;
                 this.tooltip = new TooltipManager();
-                this.setupEventListeners();
+
+                // Notification System Properties
+                this.notifications = [];
+                this.maxNotifications = 10;
+                this.notificationPanel = null; // Will be created by toggleNotificationPanel
+                this.notificationIndicator = document.querySelector('.notification-indicator');
+                this.notificationBadgeCountElement = this.notificationIndicator ? this.notificationIndicator.querySelector('.notification-badge') : null;
+
+                // Settings Modal Property
+                this.settingsModal = document.getElementById('settingsModalOverlay');
+                if (!this.settingsModal) { // Fallback if it wasn't found (e.g. if HTML diff failed before)
+                    console.warn("Settings modal overlay not found during UIManager construction. Will try to get it later.");
+                }
+
+
+                this.setupEventListeners(); // Call after all properties are initialized
                 this.initializeAnimations();
-                this.modal = {
+
+                // Initialize default active tool & notification display
+                const defaultTool = 'place';
+                this.setActiveTool(defaultTool);
+                if (!this.notificationBadgeCountElement && this.notificationIndicator) {
+                     this.notificationBadgeCountElement = this.notificationIndicator.querySelector('.notification-badge');
+                }
+                if (!this.notificationBadgeCountElement) {
+                    console.error("Notification badge element not found during UIManager construction!");
+                }
+                this.updateNotificationDisplay(); // Initial call to set badge correctly
+
+
+                this.modal = { // This is for the generic confirm modal
                     overlay: document.getElementById('modalOverlay'),
                     title: document.getElementById('modalTitle'),
                     body: document.getElementById('modalBody'),
@@ -2253,7 +2588,126 @@
                 // State listeners
                 this.gameState.addEventListener('botStatsUpdated', this.updateStatsDisplay.bind(this));
                 this.gameState.addEventListener('historyUpdated', this.updateHistoryButtons.bind(this));
+
+                if (this.notificationIndicator) {
+                    this.notificationIndicator.addEventListener('click', this.toggleNotificationPanel.bind(this));
+                } else {
+                    console.error("Notification indicator not found for click listener setup.");
+                }
+
+                // Settings Modal Listeners
+                const settingsBtn = document.getElementById('settingsBtn');
+                const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+                const settingsApplyBtn = document.getElementById('settingsApplyBtn');
+                const resetTutorialsBtn = document.getElementById('resetTutorialsBtn');
+
+                if(settingsBtn) settingsBtn.addEventListener('click', () => this.toggleSettingsModal(true));
+                if(settingsCloseBtn) settingsCloseBtn.addEventListener('click', () => this.toggleSettingsModal(false));
+                if(settingsApplyBtn) settingsApplyBtn.addEventListener('click', () => {
+                    const masterVolume = document.getElementById('masterVolume');
+                    const enableParticles = document.getElementById('enableParticles');
+                    const themeSelect = document.getElementById('themeSelect');
+                    console.log('Settings Applied:', {
+                        volume: masterVolume ? masterVolume.value : 'N/A',
+                        particles: enableParticles ? enableParticles.checked : 'N/A',
+                        theme: themeSelect ? themeSelect.value : 'N/A'
+                    });
+                    this.showNotification('Settings applied (logged to console).', 'success');
+                    this.toggleSettingsModal(false);
+                });
+                if(resetTutorialsBtn) resetTutorialsBtn.addEventListener('click', () => {
+                     console.log('Reset Tutorials button clicked.');
+                     this.showNotification('Tutorials reset (placeholder).', 'info');
+                });
+
             }
+
+            // --- Settings Modal Methods ---
+            toggleSettingsModal(show) {
+                if (!this.settingsModal) {
+                    this.settingsModal = document.getElementById('settingsModalOverlay');
+                    if (!this.settingsModal) {
+                        console.error("Settings modal element #settingsModalOverlay not found!");
+                        return;
+                    }
+                }
+                this.settingsModal.style.display = show ? 'flex' : 'none';
+                // Potentially load current settings into inputs when showing
+            }
+
+            // --- Notification System Methods ---
+            updateNotificationDisplay() {
+                if (!this.notificationBadgeCountElement) {
+                    if(this.notificationIndicator) this.notificationBadgeCountElement = this.notificationIndicator.querySelector('.notification-badge');
+                    if (!this.notificationBadgeCountElement) return; // Still not found, give up
+                }
+                const unreadCount = this.notifications.filter(n => !n.read).length;
+                this.notificationBadgeCountElement.textContent = unreadCount;
+                this.notificationBadgeCountElement.style.display = unreadCount > 0 ? 'flex' : 'none';
+
+                if (this.notificationPanel && this.notificationPanel.style.display !== 'none') {
+                    this.renderNotificationsToPanel();
+                }
+            }
+
+            formatRelativeTime(date) {
+                const now = new Date();
+                const seconds = Math.round((now - date) / 1000);
+                const minutes = Math.round(seconds / 60);
+                const hours = Math.round(minutes / 60);
+                const days = Math.round(hours / 24);
+
+                if (seconds < 5) return `just now`;
+                if (seconds < 60) return `${seconds}s ago`;
+                if (minutes < 60) return `${minutes}m ago`;
+                if (hours < 24) return `${hours}h ago`;
+                return `${days}d ago`;
+            }
+
+            renderNotificationsToPanel() {
+                if (!this.notificationPanel) return;
+                this.notificationPanel.innerHTML = '';
+                if (this.notifications.length === 0) {
+                    this.notificationPanel.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-muted);">No new notifications.</div>';
+                    return;
+                }
+
+                this.notifications.forEach(n => {
+                    const item = document.createElement('div');
+                    item.className = 'notification-panel-item';
+                    const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
+                    item.innerHTML = `
+                        <span class="notification-item-icon" style="color: ${n.type === 'success' ? 'var(--success-green)' : n.type === 'warning' ? 'var(--warning-yellow)' : n.type === 'error' ? 'var(--danger-red)' : 'var(--primary-blue)'};">${icons[n.type] || icons['info']}</span>
+                        <span class="notification-item-message">${n.message}</span>
+                        <span class="notification-item-timestamp">${this.formatRelativeTime(n.date)}</span>
+                    `;
+                    this.notificationPanel.appendChild(item);
+                });
+            }
+
+            toggleNotificationPanel() {
+                if (!this.notificationPanel) {
+                    this.notificationPanel = document.createElement('div');
+                    this.notificationPanel.className = 'notification-panel';
+                    const headerRight = document.querySelector('.header-right');
+                    if (headerRight) {
+                         headerRight.appendChild(this.notificationPanel);
+                    } else {
+                        document.body.appendChild(this.notificationPanel);
+                        console.warn("Notification panel appended to body; consider a more specific container.")
+                    }
+                }
+
+                const isHidden = this.notificationPanel.style.display === 'none' || this.notificationPanel.style.display === '';
+                this.notificationPanel.style.display = isHidden ? 'block' : 'none';
+
+                if (isHidden) {
+                    this.renderNotificationsToPanel();
+                    this.notifications.forEach(n => n.read = true); // Mark all as read when panel is opened
+                    this.updateNotificationDisplay();
+                }
+            }
+
 
             initializeAnimations() {
                 setTimeout(() => {
@@ -2295,12 +2749,22 @@
                 });
             }
             
-            handleToolSelection(event) {
+            handleToolSelection(event) { // This is when a button is clicked
                 const btn = event.currentTarget;
                 const toolId = btn.id.replace('Tool', '');
+                this.setActiveTool(toolId);
+            }
+
+            setActiveTool(toolId) { // Programmatic way to set tool
                 document.querySelectorAll('.toolbar-btn[id$="Tool"]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                const toolButton = document.getElementById(`${toolId}Tool`);
+                if (toolButton) {
+                    toolButton.classList.add('active');
+                } else {
+                    console.warn(`Tool button not found for ID: ${toolId}Tool`);
+                }
                 this.gameState.state.ui.activeTool = toolId;
+                // console.log("Active tool set to:", toolId);
             }
 
             adjustZoom(delta) {
@@ -2398,26 +2862,34 @@
             showNotification(message, type = 'info', duration = 3000) {
                 const notification = document.createElement('div');
                 const icons = { info: 'ℹ️', success: '✅', warning: '⚠️', error: '❌' };
-                notification.className = `notification notification-${type}`;
-                notification.style.cssText = `
+                const toastNotification = document.createElement('div');
+                toastNotification.className = `notification notification-${type}`;
+                toastNotification.style.cssText = `
                     position: fixed; top: 100px; right: 20px;
                     background: var(--glass-bg); backdrop-filter: blur(20px);
                     border: 1px solid var(--glass-border); border-radius: var(--border-radius);
-                    padding: 15px 20px; color: var(--text-primary); z-index: 10000;
+                    padding: 15px 20px; color: var(--text-primary); z-index: 100000; /* Ensure toast is above all */
                     transform: translateX(400px); transition: var(--transition); min-width: 250px;
                 `;
-                if (type === 'success') notification.style.borderColor = 'var(--success-green)';
-                else if (type === 'warning') notification.style.borderColor = 'var(--warning-yellow)';
-                else if (type === 'error') notification.style.borderColor = 'var(--danger-red)';
+                if (type === 'success') toastNotification.style.borderColor = 'var(--success-green)';
+                else if (type === 'warning') toastNotification.style.borderColor = 'var(--warning-yellow)';
+                else if (type === 'error') toastNotification.style.borderColor = 'var(--danger-red)';
                 
-                notification.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 18px;">${icons[type]}</span><span>${message}</span></div>`;
-                document.body.appendChild(notification);
+                toastNotification.innerHTML = `<div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 18px;">${icons[type] || icons['info']}</span><span>${message}</span></div>`;
+                document.body.appendChild(toastNotification);
                 
-                setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+                setTimeout(() => toastNotification.style.transform = 'translateX(0)', 100);
                 setTimeout(() => {
-                    notification.style.transform = 'translateX(400px)';
-                    setTimeout(() => notification.remove(), 300);
+                    toastNotification.style.transform = 'translateX(400px)';
+                    setTimeout(() => toastNotification.remove(), 300);
                 }, duration);
+
+                // Add to persistent list
+                this.notifications.unshift({ id: Date.now(), message, type, date: new Date(), read: false });
+                while (this.notifications.length > this.maxNotifications) {
+                    this.notifications.pop();
+                }
+                this.updateNotificationDisplay(); // Update badge and panel if open
             }
 
             switchToMode(mode) {
@@ -2472,9 +2944,36 @@
         // --- Enhanced Game Manager ---
         class GameManager {
             constructor() {
+                this.gameState = gameState; // Store gameState for easier access
                 this.setupEventListeners();
                 this.updateCanvasTransform();
             }
+
+            // --- Methods for Component Moving & Placement Validation ---
+            isConnectedToBot(gridX, gridY, components, ignoreComponentId = null) {
+                const otherComponents = ignoreComponentId
+                    ? components.filter(c => c.id !== ignoreComponentId)
+                    : components;
+
+                if (otherComponents.length === 0) return true; // If no other components, it's connected
+
+                const adjacent = [{ x: gridX - 1, y: gridY }, { x: gridX + 1, y: gridY }, { x: gridX, y: gridY - 1 }, { x: gridX, y: gridY + 1 }];
+                return adjacent.some(pos => otherComponents.find(c => c.gridX === pos.x && c.gridY === pos.y));
+            }
+
+            addHistoryActionForMove(originalComponentData, movedComponent) {
+                // originalComponentData is a snapshot *before* gridX/gridY change.
+                // movedComponent is the component from gameState *after* its gridX/gridY have been updated.
+                this.gameState.addHistoryAction({
+                    type: 'move_component',
+                    componentId: originalComponentData.id, // ID is constant
+                    // Store enough info to revert: just id and old coords are needed for applyHistoryState for move.
+                    before: { id: originalComponentData.id, gridX: originalComponentData.gridX, gridY: originalComponentData.gridY },
+                    // Store enough info to apply: just id and new coords.
+                    after: { id: movedComponent.id, gridX: movedComponent.gridX, gridY: movedComponent.gridY }
+                });
+            }
+            // --- End of Methods for Component Moving & Placement Validation ---
 
             updateCanvasTransform() {
                 const { zoomLevel, panOffset } = gameState.state.ui;
@@ -2511,9 +3010,25 @@
                 return true;
             }
 
-            isConnectedToBot(gridX, gridY, components) {
+            isConnectedToBot(gridX, gridY, components, ignoreComponentId = null) {
+                const otherComponents = ignoreComponentId
+                    ? components.filter(c => c.id !== ignoreComponentId)
+                    : components;
+
+                if (otherComponents.length === 0) return true; // If no other components, it's connected (it's the first or only)
+
                 const adjacent = [{ x: gridX - 1, y: gridY }, { x: gridX + 1, y: gridY }, { x: gridX, y: gridY - 1 }, { x: gridX, y: gridY + 1 }];
-                return adjacent.some(pos => components.find(c => c.gridX === pos.x && c.gridY === pos.y));
+                return adjacent.some(pos => otherComponents.find(c => c.gridX === pos.x && c.gridY === pos.y));
+            }
+
+            addHistoryActionForMove(originalComponentData, movedComponentData) {
+                // originalComponentData is a snapshot before move, movedComponentData is the component *after* its gridX/Y have been updated
+                this.gameState.addHistoryAction({
+                    type: 'move_component',
+                    componentId: originalComponentData.id, // ID remains the same
+                    before: { gridX: originalComponentData.gridX, gridY: originalComponentData.gridY, ...originalComponentData }, // Store all original data
+                    after: { gridX: movedComponentData.gridX, gridY: movedComponentData.gridY, ...movedComponentData } // Store all new data
+                });
             }
 
             placeComponent(componentType, gridX, gridY) {
@@ -2574,6 +3089,10 @@
                 const compDef = COMPONENTS[component.type];
                 const element = document.createElement('div');
                 element.className = 'bot-component';
+                // Check if gameState and selectedComponents are available before trying to access them
+                if (this.gameState && this.gameState.state.ui.selectedComponents && this.gameState.state.ui.selectedComponents.includes(component.id)) {
+                    element.classList.add('selected');
+                }
                 element.id = `component-${component.id}`;
                 element.style.cssText = `
                     position: absolute;
@@ -2617,22 +3136,123 @@
             }
 
             randomizeBot() {
-                // Simplified randomize for now
-                const beforeState = gameState.state.bot.components.map(c => ({...c}));
-                gameState.state.bot.components = [];
-                this.placeComponent('control-unit', 10, 8);
-                this.placeComponent('heavy-frame', 10, 7);
-                this.placeComponent('large-wheel', 9, 8);
-                this.placeComponent('large-wheel', 11, 8);
-                this.placeComponent('electric-motor', 9, 7);
-                this.placeComponent('electric-motor', 11, 7);
-                this.placeComponent('large-battery', 10, 9);
-                this.placeComponent('spinner-blade', 10, 6);
-                const afterState = gameState.state.bot.components.map(c => ({...c}));
-                gameState.addHistoryAction({ type: 'randomize', before: beforeState, after: afterState });
-                gameState.updateBotStats();
-                this.renderBot();
-                uiManager.showNotification('Bot randomized!', 'success');
+                const beforeState = this.gameState.state.bot.components.map(c => ({ ...c }));
+                let currentBotComponents = [];
+                let occupiedCells = {}; // 'x_y': true
+                const START_X = 10, START_Y = 8, MAX_RADIUS = 4;
+                let currentWeight = 0;
+                let componentIdCounter = Date.now(); // For unique IDs
+
+                const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+                const getValidNeighborCells = (botComps, occupied, sX, sY, mR) => {
+                    if (botComps.length === 0) {
+                        return [{x: sX, y: sY}]; // Start at the center
+                    }
+                    let validNeighbors = {};
+                    botComps.forEach(component => {
+                        const neighbors = [{dx:0,dy:1},{dx:0,dy:-1},{dx:1,dy:0},{dx:-1,dy:0}];
+                        neighbors.forEach(n => {
+                            const nx = component.gridX + n.dx;
+                            const ny = component.gridY + n.dy;
+                            const distance = Math.sqrt(Math.pow(nx - sX, 2) + Math.pow(ny - sY, 2));
+                            if (!occupied[`${nx}_${ny}`] && distance <= mR) {
+                                validNeighbors[`${nx}_${ny}`] = {x: nx, y: ny};
+                            }
+                        });
+                    });
+                    return Object.values(validNeighbors);
+                };
+
+                const tryAddComponent = (componentType) => {
+                    const componentDef = COMPONENTS[componentType];
+                    if (!componentDef) {
+                        console.warn("Randomize: Def not found for", componentType);
+                        return false;
+                    }
+                    if (currentWeight + componentDef.mass > CONFIG.MAX_WEIGHT) {
+                        // console.log("Randomize: Cannot add", componentType, "due to weight");
+                        return false;
+                    }
+
+                    const validCells = getValidNeighborCells(currentBotComponents, occupiedCells, START_X, START_Y, MAX_RADIUS);
+                    if (validCells.length === 0) {
+                        // console.warn('Randomize: No valid cells for', componentType);
+                        return false;
+                    }
+                    const cell = getRandomElement(validCells);
+
+                    const newPart = {
+                        type: componentType,
+                        gridX: cell.x,
+                        gridY: cell.y,
+                        id: componentIdCounter++, // Use incrementing counter for unique ID
+                        durability: componentDef.durability
+                    };
+                    currentBotComponents.push(newPart);
+                    occupiedCells[`${cell.x}_${cell.y}`] = true;
+                    currentWeight += componentDef.mass;
+                    // console.log("Added:", componentType, "at", cell.x, cell.y, "Weight:", currentWeight);
+                    return true;
+                };
+
+                const coreTypes = ['control-unit'];
+                const structuralTypes = ['metal-beam', 'light-frame', 'heavy-frame', 'armor-plating', 'wood-plank'];
+                const movementTypes = ['small-wheel', 'large-wheel'];
+                const motorType = 'electric-motor';
+                const powerTypes = ['small-battery', 'large-battery'];
+                const weaponTypes = ['drill-spike', 'spinner-blade', 'hammer-arm', 'flipper-panel', 'flamethrower'];
+                const utilityTypes = ['servo', 'energy-shield', 'sensor-array'];
+
+                // Build Sequence
+                if (!tryAddComponent(coreTypes[0])) { // Must add control unit
+                    this.uiManager.showNotification('Randomization failed: Could not place core.', 'error');
+                    this.gameState.state.bot.components = beforeState; // Revert
+                    return;
+                }
+
+                let structureCount = Math.floor(Math.random() * 3) + 2; // 2-4 structures
+                for (let i = 0; i < structureCount; i++) tryAddComponent(getRandomElement(structuralTypes));
+
+                let movementSetCount = Math.random() > 0.4 ? 2 : 1; // 1 or 2 sets
+                for (let i = 0; i < movementSetCount; i++) {
+                    tryAddComponent(getRandomElement(movementTypes));
+                    tryAddComponent(motorType);
+                }
+
+                let powerSourceCount = Math.floor(Math.random() * 2) + 1; // 1-2 power sources
+                for (let i = 0; i < powerSourceCount; i++) tryAddComponent(getRandomElement(powerTypes));
+
+                let weaponCount = Math.floor(Math.random() * 2) + 1; // 1-2 weapons
+                for (let i = 0; i < weaponCount; i++) tryAddComponent(getRandomElement(weaponTypes));
+
+                if (Math.random() > 0.3) { tryAddComponent(getRandomElement(utilityTypes)); }
+                if (Math.random() > 0.6 && currentBotComponents.filter(c=>utilityTypes.includes(c.type)).length < 2) {
+                    tryAddComponent(getRandomElement(utilityTypes));
+                }
+
+                if (currentBotComponents.length <= 1 && beforeState.length > 0) {
+                    this.gameState.state.bot.components = beforeState;
+                    this.uiManager.showNotification('Randomization failed to produce a substantial bot, reverted.', 'warning');
+                    // No need to call updateBotStats or renderBot if reverting, as state hasn't effectively changed for observer
+                    return;
+                }
+
+                this.gameState.state.bot.components = currentBotComponents;
+                const afterState = this.gameState.state.bot.components.map(c => ({ ...c }));
+                this.gameState.addHistoryAction({ type: 'randomize', before: beforeState, after: afterState });
+
+                // These will be triggered by applyHistoryState if it's part of addHistoryAction,
+                // but if addHistoryAction doesn't immediately apply, call them.
+                // Based on current GameStateManager, applyHistoryState is NOT called by addHistoryAction.
+                // So, we need to call updateBotStats and renderBot.
+                // However, the event 'botDesignChanged' from applyHistoryState in undo/redo should trigger renderBot.
+                // And 'botStatsUpdated' should trigger UI updates.
+                // For direct action like randomize, let's be explicit.
+                this.gameState.updateBotStats();
+                this.renderBot(); // GameManager's renderBot
+
+                this.uiManager.showNotification('Bot randomized with improved strategy!', 'success');
             }
             
             saveBot() {
@@ -2685,12 +3305,58 @@
 
             handleKeyDown(event) {
                 gameState.state.input.keys[event.code] = true;
-                if (gameState.state.mode === 'builder') {
+                if (this.gameState.state.mode === 'builder') { // Use this.gameState
                     if (event.ctrlKey || event.metaKey) {
-                        if (event.code === 'KeyZ') { event.preventDefault(); event.shiftKey ? uiManager.handleRedo() : uiManager.handleUndo(); }
+                        if (event.code === 'KeyZ') {
+                            event.preventDefault();
+                            // Assuming gameState.undo/redo are now the primary history handlers
+                            event.shiftKey ? this.gameState.redo() : this.gameState.undo();
+                        }
+                        // Add Ctrl+C, Ctrl+V for copy/paste later if desired
+                    } else if (event.code === 'Delete' || event.code === 'Backspace') {
+                        event.preventDefault();
+                        this.deleteSelectedComponents();
                     }
-                } else if (gameState.state.mode === 'battle') {
+                    // Tool shortcuts - these should call a method in UIManager to correctly update button states
+                    else if (event.code === 'KeyV') uiManager.setActiveTool('select');
+                    else if (event.code === 'KeyP') uiManager.setActiveTool('place');
+                    else if (event.code === 'KeyR') uiManager.setActiveTool('rotate');
+                    else if (event.code === 'KeyM') uiManager.setActiveTool('move'); // Assuming a move tool might exist
+
+                } else if (this.gameState.state.mode === 'battle') {
                     if (event.code === 'Escape') this.returnToBuilder();
+                }
+            }
+
+            deleteSelectedComponents() {
+                const selectedIds = this.gameState.state.ui.selectedComponents;
+                if (!selectedIds || selectedIds.length === 0) return;
+
+                const currentComponents = this.gameState.state.bot.components;
+                const beforeState = currentComponents.map(c => ({...c}));
+
+                const afterState = currentComponents.filter(comp => !selectedIds.includes(comp.id));
+
+                if (beforeState.length !== afterState.length) {
+                    this.gameState.addHistoryAction({
+                        type: 'delete_components',
+                        before: beforeState,
+                        // Ensure afterState is also a deep copy for history integrity
+                        after: afterState.map(c => ({...c})),
+                        deletedIds: [...selectedIds]
+                    });
+
+                    // Apply the state change directly to gameState, which should trigger render via events
+                    this.gameState.state.bot.components = afterState;
+                    this.gameState.state.ui.selectedComponents = [];
+
+                    this.gameState.updateBotStats(); // This should trigger botStatsUpdated event
+                    this.renderBot(); // Explicitly call renderBot to be sure UI updates
+                                     // In a more event-driven system, botDesignChanged event would handle this.
+
+                    uiManager.showNotification(`${selectedIds.length} component(s) deleted.`, 'info');
+                } else {
+                    console.log("Delete selected: No change in components array length, nothing deleted?");
                 }
             }
 
@@ -2700,29 +3366,983 @@
 
             handleResize() {
                 if (gameState.state.mode === 'builder') this.renderBot();
-                else if (gameState.state.mode === 'battle') battleManager.handleResize();
+                // battleManager.handleResize() will be called by its own window resize listener if active
+                if (gameState.state.mode === 'battle' && battleManager && typeof battleManager.handleResize === 'function') {
+                    battleManager.handleResize();
+                }
             }
         }
         
         // Simplified BattleManager for brevity, focusing on the fixes
         class BattleManager {
-             constructor() { this.engine = null; }
-             initializeBattle() { /* ... full battle init logic ... */ }
-             cleanup() { /* ... full battle cleanup logic ... */ }
-             handleResize() { /* ... logic to resize Matter.js render ... */ }
+            constructor() {
+                this.engine = null;
+                this.render = null;
+                this.runner = null; // Matter.Runner manages the engine's update loop
+                this.playerBotBody = null;
+                this.enemyBotBody = null;
+                this.canvas = null;
+                this.componentBodyScale = CONFIG.GRID_SIZE;
+                this.botPartSize = CONFIG.GRID_SIZE * 0.95;
+                this.remainingBattleTime = CONFIG.BATTLE_DURATION;
+                this.battleEnded = false;
+                this.collisionHandlers = null; // To store collision event pair IDs
+            }
+
+            initializeBattle() {
+                console.log("Initializing Battle...");
+                const battleArena = document.getElementById('battleArena');
+                if (!battleArena) {
+                    console.error("Battle arena element not found!");
+                    return;
+                }
+
+                // Ensure arena is clear for new renderer
+                battleArena.innerHTML = '';
+
+
+                // 1. Matter.js Engine Setup
+                this.engine = Matter.Engine.create();
+                const world = this.engine.world;
+
+                // Renderer
+                this.render = Matter.Render.create({
+                    element: battleArena,
+                    engine: this.engine,
+                    options: {
+                        width: battleArena.clientWidth,
+                        height: battleArena.clientHeight,
+                        wireframes: false, // Show solid shapes
+                        background: 'var(--dark-surface)'
+                    }
+                });
+                this.canvas = this.render.canvas;
+
+
+                // Add static ground
+                const ground = Matter.Bodies.rectangle(
+                    battleArena.clientWidth / 2,
+                    battleArena.clientHeight - 30,
+                    battleArena.clientWidth,
+                    60,
+                    { isStatic: true, render: { fillStyle: 'var(--glass-border)' } }
+                );
+                Matter.World.add(world, ground);
+
+                // Walls
+                const wallOptions = { isStatic: true, render: { fillStyle: 'var(--glass-border)' } };
+                Matter.World.add(world, [
+                    Matter.Bodies.rectangle(battleArena.clientWidth / 2, -30, battleArena.clientWidth, 60, wallOptions), // Top wall (ceiling)
+                    Matter.Bodies.rectangle(-30, battleArena.clientHeight / 2, 60, battleArena.clientHeight, wallOptions), // Left wall
+                    Matter.Bodies.rectangle(battleArena.clientWidth + 30, battleArena.clientHeight / 2, 60, battleArena.clientHeight, wallOptions) // Right wall
+                ]);
+
+                // 2. Bot Body Creation (Compound)
+                const playerBotOptions = {
+                    frictionAir: 0.07,
+                    friction: 0.1,
+                    restitution: 0.1, // Less bouncy
+                    density: 0.002 // Adjust density as parts are added
+                };
+                this.playerBotBody = this.createBotBody(
+                    gameState.state.bot.components,
+                    battleArena.clientWidth * 0.25,
+                    battleArena.clientHeight / 2,
+                    playerBotOptions,
+                    'player'
+                );
+
+                // Define a simple enemy bot structure
+                const enemyBotComponents = [
+                    { id: 'enemy-cpu', type: 'control-unit', gridX: 0, gridY: 0, durability: 100 },
+                    { id: 'enemy-frame1', type: 'metal-beam', gridX: 0, gridY: -1, durability: 60 },
+                    { id: 'enemy-frame2', type: 'metal-beam', gridX: 0, gridY: 1, durability: 60 },
+                    { id: 'enemy-wheel1', type: 'small-wheel', gridX: -1, gridY: 0, durability: 30 },
+                    { id: 'enemy-wheel2', type: 'small-wheel', gridX: 1, gridY: 0, durability: 30 },
+                    { id: 'enemy-weapon', type: 'drill-spike', gridX: 0, gridY: -2, durability: 45 }
+                ];
+                 const enemyBotOptions = {
+                    frictionAir: 0.07,
+                    friction: 0.1,
+                    restitution: 0.1,
+                    density: 0.002
+                };
+                this.enemyBotBody = this.createBotBody(
+                    enemyBotComponents,
+                    battleArena.clientWidth * 0.75,
+                    battleArena.clientHeight / 2,
+                    enemyBotOptions,
+                    'enemy'
+                );
+
+                if (this.playerBotBody) Matter.World.add(world, this.playerBotBody);
+                if (this.enemyBotBody) Matter.World.add(world, this.enemyBotBody);
+
+                // Start engine and renderer
+                this.runner = Matter.Runner.create();
+                Matter.Runner.run(this.runner, this.engine); // Use Runner for consistent updates
+                Matter.Render.run(this.render);
+
+                // 3. Game Loop Setup
+                Matter.Events.on(this.engine, 'beforeUpdate', this.gameLoop.bind(this));
+
+                console.log("Battle Initialized. Engine and Renderer running.");
+                this.handleResize(); // Initial resize to set canvas dimensions correctly
+                window.addEventListener('resize', this.handleResize.bind(this)); // Add resize listener for battle mode
+
+                // Collision Events
+                this.collisionHandlers = new Set(); // Use a Set to track active collision pairs
+                Matter.Events.on(this.engine, 'collisionStart', this.handleCollisions.bind(this));
+                Matter.Events.on(this.engine, 'collisionActive', this.handleCollisions.bind(this)); // For continuous damage or effects
+                // Matter.Events.on(this.engine, 'collisionEnd', (event) => {
+                //     event.pairs.forEach(pair => {
+                //         this.collisionHandlers.delete(pair.id);
+                //     });
+                // });
+
+                this.remainingBattleTime = CONFIG.BATTLE_DURATION;
+                this.battleEnded = false;
+                document.getElementById('gameOverScreen').style.display = 'none'; // Ensure it's hidden
+            }
+
+            createBotBody(components, initialX, initialY, options = {}, botType = 'player') {
+                if (!components || components.length === 0) {
+                    console.warn(`No components provided for ${botType} bot body.`);
+                    // Create a simple fallback circle if no components
+                    return Matter.Bodies.circle(initialX, initialY, this.botPartSize / 2, {
+                        label: `${botType}-fallback-body`,
+                        ...options
+                    });
+                }
+
+                const parts = [];
+                let totalMass = 0;
+                let minGridX = Infinity, maxGridX = -Infinity, minGridY = Infinity, maxGridY = -Infinity;
+
+                components.forEach(component => {
+                    minGridX = Math.min(minGridX, component.gridX);
+                    maxGridX = Math.max(maxGridX, component.gridX);
+                    minGridY = Math.min(minGridY, component.gridY);
+                    maxGridY = Math.max(maxGridY, component.gridY);
+                });
+
+                const offsetX = (minGridX + maxGridX) / 2;
+                const offsetY = (minGridY + maxGridY) / 2;
+
+                components.forEach(component => {
+                    const componentDef = COMPONENTS[component.type];
+                    if (!componentDef) {
+                        console.warn(`Component definition not found for type: ${component.type}`);
+                        return;
+                    }
+
+                    // Calculate position relative to the bot's geometric center, then offset by initialX, initialY
+                    const partX = (component.gridX - offsetX) * this.componentBodyScale;
+                    const partY = (component.gridY - offsetY) * this.componentBodyScale;
+
+                    const part = Matter.Bodies.rectangle(
+                        partX,
+                        partY,
+                        this.botPartSize,
+                        this.botPartSize,
+                        {
+                            render: { fillStyle: componentDef.color || '#cccccc' },
+                            label: `${botType}-part-${component.type}`
+                        }
+                    );
+
+                    part.gameComponent = component; // Reference to the specific instance of the component
+                    part.componentDefinition = componentDef; // Reference to the base component definition
+                    part.isControlUnit = component.type === 'control-unit';
+
+                    if (componentDef.type === 'energy-shield') {
+                        part.gameComponent.currentShieldHealth = componentDef.shieldHealth;
+                        part.gameComponent.shieldLastHitTime = 0; // Initialize shield last hit time
+                    }
+
+                    parts.push(part);
+                    totalMass += componentDef.mass; // Approximate mass contribution
+                });
+
+                if (parts.length === 0) {
+                     console.warn(`No valid parts created for ${botType} bot body. Creating fallback.`);
+                     return Matter.Bodies.circle(initialX, initialY, this.botPartSize, { label: `${botType}-fallback-body`, ...options });
+                }
+
+                const compoundBody = Matter.Body.create({
+                    parts: parts,
+                    isSleeping: false,
+                    label: `${botType}-bot-body`,
+                    ...options // Apply options like friction, restitution
+                });
+
+                // Set initial position of the compound body
+                Matter.Body.setPosition(compoundBody, { x: initialX, y: initialY });
+                // Adjust mass based on components - Matter.js does this, but we can guide it
+                Matter.Body.setMass(compoundBody, options.density ? options.density * totalMass : compoundBody.mass);
+
+
+                console.log(`${botType} bot body created with ${parts.length} parts. Mass: ${compoundBody.mass.toFixed(2)}`);
+                return compoundBody;
+            }
+
+            gameLoop(event) {
+                if (this.battleEnded) return;
+
+                const deltaTime = this.engine.timing.deltaTime / 1000; // Convert ms to seconds
+                this.remainingBattleTime -= deltaTime;
+
+                this.handlePlayerInput();
+                this.updateAI();
+                this.updateShields(deltaTime); // Call shield regeneration
+                this.updateHUD();
+                this.checkBattleEndConditions();
+            }
+
+            updateShields(deltaTime) {
+                const shieldRegenDelay = 2000; // 2 seconds before regen starts
+
+                [this.playerBotBody, this.enemyBotBody].forEach(botBody => {
+                    if (!botBody || !botBody.parts) return;
+
+                    botBody.parts.slice(1).forEach(part => {
+                        if (part.gameComponent &&
+                            part.componentDefinition &&
+                            part.componentDefinition.type === 'energy-shield' &&
+                            !part.gameComponent.destroyed &&
+                            part.gameComponent.currentShieldHealth < part.componentDefinition.shieldHealth) {
+
+                            const timeSinceLastHit = Date.now() - (part.gameComponent.shieldLastHitTime || 0);
+
+                            if (timeSinceLastHit > shieldRegenDelay) {
+                                const regenAmount = part.componentDefinition.shieldRegen * deltaTime;
+                                part.gameComponent.currentShieldHealth = Math.min(
+                                    part.componentDefinition.shieldHealth,
+                                    part.gameComponent.currentShieldHealth + regenAmount
+                                );
+                            }
+                        }
+                    });
+                });
+            }
+
+            updateHUD() {
+                // Timer
+                const minutes = Math.floor(this.remainingBattleTime / 60);
+                const seconds = Math.floor(this.remainingBattleTime % 60);
+                document.getElementById('battleTimer').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                // Player Health
+                if (this.playerBotBody) {
+                    let currentHp = 0;
+                    let maxHp = 0;
+                    this.playerBotBody.parts.slice(1).forEach(part => { // .slice(1) to skip main compound body
+                        if (part.gameComponent && part.componentDefinition) {
+                            currentHp += Math.max(0, part.gameComponent.durability);
+                            maxHp += part.componentDefinition.durability;
+                        }
+                    });
+                    const playerHealthPercent = maxHp > 0 ? (currentHp / maxHp) : 0;
+                    document.getElementById('playerHealth').style.backgroundPosition = `${100 - playerHealthPercent * 100}% 0%`;
+                    document.getElementById('playerHealthText').textContent = `${Math.round(currentHp)} / ${Math.round(maxHp)} HP`;
+
+                    let currentShield = 0;
+                    let maxShield = 0;
+                    this.playerBotBody.parts.slice(1).forEach(part => {
+                        if (part.gameComponent && part.componentDefinition && part.componentDefinition.type === 'energy-shield' && !part.gameComponent.destroyed) {
+                            currentShield += Math.max(0, part.gameComponent.currentShieldHealth);
+                            maxShield += part.componentDefinition.shieldHealth;
+                        }
+                    });
+                    document.getElementById('playerShieldBar').style.width = maxShield > 0 ? `${(currentShield / maxShield) * 100}%` : '0%';
+                    document.getElementById('playerShieldText').textContent = `${Math.round(currentShield)} / ${Math.round(maxShield)} SHP`;
+                }
+
+                // Enemy Health & Shield
+                if (this.enemyBotBody) {
+                    let currentHp = 0;
+                    let maxHp = 0;
+                     this.enemyBotBody.parts.slice(1).forEach(part => {
+                        if (part.gameComponent && part.componentDefinition) {
+                            currentHp += Math.max(0, part.gameComponent.durability);
+                            maxHp += part.componentDefinition.durability;
+                        }
+                    });
+                    const enemyHealthPercent = maxHp > 0 ? (currentHp / maxHp) : 0;
+                    document.getElementById('enemyHealth').style.backgroundPosition = `${100 - enemyHealthPercent * 100}% 0%`;
+                    document.getElementById('enemyHealthText').textContent = `${Math.round(currentHp)} / ${Math.round(maxHp)} HP`;
+
+                    let currentShield = 0;
+                    let maxShield = 0;
+                    this.enemyBotBody.parts.slice(1).forEach(part => {
+                        if (part.gameComponent && part.componentDefinition && part.componentDefinition.type === 'energy-shield' && !part.gameComponent.destroyed) {
+                            currentShield += Math.max(0, part.gameComponent.currentShieldHealth);
+                            maxShield += part.componentDefinition.shieldHealth;
+                        }
+                    });
+                    document.getElementById('enemyShieldBar').style.width = maxShield > 0 ? `${(currentShield / maxShield) * 100}%` : '0%';
+                    document.getElementById('enemyShieldText').textContent = `${Math.round(currentShield)} / ${Math.round(maxShield)} SHP`;
+                }
+            }
+
+            handleCollisions(event) {
+                if (this.battleEnded) return;
+
+                event.pairs.forEach(pair => {
+                    const { bodyA, bodyB } = pair;
+
+                    // Ensure we are dealing with parts of compound bodies, not the compound bodies themselves directly
+                    const partA = bodyA.parent !== bodyA ? bodyA : null; // bodyA is a part if its parent is not itself
+                    const partB = bodyB.parent !== bodyB ? bodyB : null; // bodyB is a part if its parent is not itself
+
+                    // If direct compound bodies collide (e.g. a part vs a compound, or two compounds), try to get a representative part.
+                    // This logic might need refinement based on how Matter.js reports collisions for compound objects.
+                    // For now, we prioritize collisions between actual parts.
+
+                    let botPartA = null;
+                    let botPartB = null;
+
+                    if (partA && partA.gameComponent && partA.componentDefinition) botPartA = partA;
+                    else if (bodyA.parent.gameComponent && bodyA.parent.componentDefinition && bodyA.parent.parts.length > 1) botPartA = bodyA; // bodyA is the part, parent is compound
+
+                    if (partB && partB.gameComponent && partB.componentDefinition) botPartB = partB;
+                    else if (bodyB.parent.gameComponent && bodyB.parent.componentDefinition && bodyB.parent.parts.length > 1) botPartB = bodyB;
+
+
+                    if (botPartA && botPartB && botPartA.parent !== botPartB.parent) { // Ensure parts are from different compound bodies
+                         // Check if one is player and other is enemy
+                        const isPlayerA = botPartA.parent === this.playerBotBody;
+                        const isEnemyA = botPartA.parent === this.enemyBotBody;
+                        const isPlayerB = botPartB.parent === this.playerBotBody;
+                        const isEnemyB = botPartB.parent === this.enemyBotBody;
+
+                        if ((isPlayerA && isEnemyB) || (isEnemyA && isPlayerB)) {
+                            // Collision between player and enemy parts
+                            // Simple damage: 10 damage if a weapon, 2 otherwise, + relative speed
+                            let damageA = 2; // Damage B applies to A
+                            let damageB = 2; // Damage A applies to B
+
+                            const relSpeed = Math.sqrt(
+                                Math.pow(pair.collision.supports[0].body.velocity.x - pair.collision.supports[0].body.velocity.x, 2) +
+                                Math.pow(pair.collision.supports[0].body.velocity.y - pair.collision.supports[0].body.velocity.y, 2)
+                            );
+                            const impactForce = pair.collision.depth * (botPartA.mass + botPartB.mass) * 0.05; // A very rough estimate
+                            const velocityDamage = Math.min(20, impactForce * 0.5 + relSpeed * 0.1);
+
+
+                            if (botPartA.componentDefinition.category === 'weapon') damageB += (botPartA.componentDefinition.damage || 5);
+                            if (botPartB.componentDefinition.category === 'weapon') damageA += (botPartB.componentDefinition.damage || 5);
+
+                            damageA += velocityDamage;
+                            damageB += velocityDamage;
+
+                            // Apply damage, prioritizing shields
+                            this.applyDamageToBotPart(botPartA, damageA, botPartB); // botPartB is the attacker relative to A
+                            this.applyDamageToBotPart(botPartB, damageB, botPartA); // botPartA is the attacker relative to B
+                        }
+                    }
+                });
+            }
+
+            applyDamageToBotPart(targetPart, damageAmount, attackingPart) {
+                if (!targetPart || !targetPart.gameComponent || targetPart.gameComponent.durability <= 0) {
+                    return; // Target already destroyed or invalid
+                }
+
+                const targetBot = targetPart.parent; // The compound body of the target
+                let remainingDamage = damageAmount;
+
+                // 1. Check for active energy shields on the target bot
+                if (targetBot && targetBot.parts) {
+                    const shieldParts = targetBot.parts.slice(1).filter(p =>
+                        p.gameComponent &&
+                        p.componentDefinition &&
+                        p.componentDefinition.type === 'energy-shield' &&
+                        !p.gameComponent.destroyed &&
+                        p.gameComponent.currentShieldHealth > 0
+                    );
+
+                    if (shieldParts.length > 0) {
+                        // For simplicity, pick the first active shield. Could be more complex (e.g. closest, or distribute)
+                        const activeShield = shieldParts[0];
+                        activeShield.gameComponent.shieldLastHitTime = Date.now();
+
+                        if (remainingDamage <= activeShield.gameComponent.currentShieldHealth) {
+                            activeShield.gameComponent.currentShieldHealth -= remainingDamage;
+                            remainingDamage = 0;
+                        } else {
+                            remainingDamage -= activeShield.gameComponent.currentShieldHealth;
+                            activeShield.gameComponent.currentShieldHealth = 0;
+                            // Shield part itself might not be "destroyed" yet, just its current health depleted
+                        }
+                    }
+                }
+
+                // 2. If damage remains, apply to the component's durability
+                if (remainingDamage > 0) {
+                    targetPart.gameComponent.durability -= remainingDamage;
+                    if (targetPart.gameComponent.durability <= 0) {
+                        targetPart.gameComponent.durability = 0;
+                        targetPart.gameComponent.destroyed = true;
+                        targetPart.render.opacity = 0.3;
+                        console.log(`${targetPart.label} (component ID: ${targetPart.gameComponent.id}) destroyed on ${targetBot.label}`);
+
+                        // If the destroyed part was a shield, ensure its currentShieldHealth is also 0
+                        if (targetPart.componentDefinition && targetPart.componentDefinition.type === 'energy-shield') {
+                            targetPart.gameComponent.currentShieldHealth = 0;
+                        }
+                    }
+                }
+            }
+
+
+            checkBattleEndConditions() {
+                if (this.battleEnded) return;
+
+                let playerControlUnitDestroyed = false;
+                if (this.playerBotBody && this.playerBotBody.parts.length > 1) {
+                    const controlUnit = this.playerBotBody.parts.find(p => p.isControlUnit);
+                    if (controlUnit && controlUnit.gameComponent && controlUnit.gameComponent.destroyed) {
+                        playerControlUnitDestroyed = true;
+                    } else if (!controlUnit && this.playerBotBody.parts.slice(1).every(p => p.gameComponent && p.gameComponent.destroyed)) {
+                        // Fallback if no CPU found, but all other parts are gone (e.g. CPU was the only part)
+                         playerControlUnitDestroyed = true;
+                    }
+                } else if (!this.playerBotBody) playerControlUnitDestroyed = true; // No body means defeat
+
+
+                let enemyControlUnitDestroyed = false;
+                if (this.enemyBotBody && this.enemyBotBody.parts.length > 1) {
+                    const controlUnit = this.enemyBotBody.parts.find(p => p.isControlUnit);
+                    if (controlUnit && controlUnit.gameComponent && controlUnit.gameComponent.destroyed) {
+                        enemyControlUnitDestroyed = true;
+                    } else if (!controlUnit && this.enemyBotBody.parts.slice(1).every(p => p.gameComponent && p.gameComponent.destroyed)) {
+                        enemyControlUnitDestroyed = true;
+                    }
+                } else if (!this.enemyBotBody) enemyControlUnitDestroyed = true;
+
+
+                let winner = null; // null for ongoing, 'player', 'enemy', or 'draw'
+
+                if (playerControlUnitDestroyed && enemyControlUnitDestroyed) {
+                    winner = 'draw';
+                } else if (playerControlUnitDestroyed) {
+                    winner = 'enemy';
+                } else if (enemyControlUnitDestroyed) {
+                    winner = 'player';
+                }
+
+                if (this.remainingBattleTime <= 0 && !winner) {
+                    // Time's up, determine winner by health
+                    let playerHealth = 0;
+                    this.playerBotBody.parts.slice(1).forEach(p => playerHealth += (p.gameComponent && !p.gameComponent.destroyed ? p.gameComponent.durability : 0));
+                    let enemyHealth = 0;
+                    this.enemyBotBody.parts.slice(1).forEach(p => enemyHealth += (p.gameComponent && !p.gameComponent.destroyed ? p.gameComponent.durability : 0));
+
+                    if (playerHealth > enemyHealth) winner = 'player';
+                    else if (enemyHealth > playerHealth) winner = 'enemy';
+                    else winner = 'draw';
+                }
+
+                if (winner) {
+                    this.endBattle(winner);
+                }
+            }
+
+            endBattle(winner) {
+                this.battleEnded = true;
+                if (this.runner) Matter.Runner.stop(this.runner); // Stop physics updates
+
+                const screen = document.getElementById('gameOverScreen');
+                const title = document.getElementById('gameOverTitle');
+                const message = document.getElementById('gameOverMessage');
+                const icon = document.getElementById('gameOverIcon');
+
+                document.getElementById('battleDuration').textContent =
+                    `${Math.floor((CONFIG.BATTLE_DURATION - Math.max(0,this.remainingBattleTime)) / 60).toString().padStart(2, '0')}:${Math.floor((CONFIG.BATTLE_DURATION - Math.max(0,this.remainingBattleTime)) % 60).toString().padStart(2, '0')}`;
+                document.getElementById('finalScore').textContent = "N/A"; // Placeholder
+
+                if (winner === 'player') {
+                    title.textContent = "Victory!";
+                    message.textContent = "Your bot has proven superior in combat!";
+                    icon.textContent = "🏆";
+                    title.className = 'win';
+                } else if (winner === 'enemy') {
+                    title.textContent = "Defeat!";
+                    message.textContent = "Your bot was overcome. Better luck next time!";
+                    icon.textContent = "☠️";
+                    title.className = 'lose';
+                } else { // Draw
+                    title.textContent = "Draw!";
+                    message.textContent = "The battle ended in a stalemate!";
+                    icon.textContent = "🤝";
+                    title.className = '';
+                }
+                screen.style.display = 'flex'; // Show the game over screen
+            }
+
+            updateAI() {
+                if (!this.enemyBotBody || !this.playerBotBody || !this.enemyBotBody.parts || this.enemyBotBody.parts.length <=1 ) return; // Second check for placeholder/fallback
+
+                const enemyPos = this.enemyBotBody.position;
+                const playerPos = this.playerBotBody.position;
+
+                const directionX = playerPos.x - enemyPos.x;
+                const directionY = playerPos.y - enemyPos.y;
+
+                const distance = Math.sqrt(directionX * directionX + directionY * directionY);
+                const pursuitThreshold = this.componentBodyScale * 5; // Start moving when player is within 5 grid units
+
+                if (distance < 10 || distance > pursuitThreshold * 5) { // Don't move if too close or too far
+                     Matter.Body.setVelocity(this.enemyBotBody, {x:0, y:0}); // Stop if too close or very far
+                    return;
+                }
+
+                if (distance < pursuitThreshold * 2 && distance > this.componentBodyScale * 1.5) { // Only move if player is somewhat close
+                    const normalizedX = directionX / distance;
+                    const normalizedY = directionY / distance;
+
+                    const forceMagnitude = 0.0005 * this.enemyBotBody.mass; // Make it quite weak for now
+                    const force = { x: normalizedX * forceMagnitude, y: normalizedY * forceMagnitude };
+
+                    // Apply force to the main body (center of mass)
+                    Matter.Body.applyForce(this.enemyBotBody, enemyPos, force);
+                }
+
+
+                // Optional: Basic rotation towards player
+                const targetAngle = Math.atan2(directionY, directionX);
+                let angleDifference = targetAngle - this.enemyBotBody.angle;
+                // Normalize angle difference to be between -PI and PI
+                while (angleDifference < -Math.PI) angleDifference += 2 * Math.PI;
+                while (angleDifference > Math.PI) angleDifference -= 2 * Math.PI;
+
+                const rotationSpeed = 0.0001 * this.enemyBotBody.mass;
+                if (Math.abs(angleDifference) > 0.1) { // Only rotate if significant difference
+                    Matter.Body.setAngularVelocity(this.enemyBotBody, Math.sign(angleDifference) * rotationSpeed);
+                } else {
+                    Matter.Body.setAngularVelocity(this.enemyBotBody, 0); // Dampen rotation
+                }
+            }
+
+            handlePlayerInput() {
+                if (!this.playerBotBody || !gameState) return;
+
+                const keys = gameState.state.input.keys;
+                const forceMagnitude = 0.005 * this.playerBotBody.mass; // Scale force by mass for consistent feel
+
+                let force = { x: 0, y: 0 };
+
+                if (keys['KeyW'] || keys['ArrowUp']) {
+                    force.y -= forceMagnitude;
+                }
+                if (keys['KeyS'] || keys['ArrowDown']) {
+                    force.y += forceMagnitude;
+                }
+                if (keys['KeyA'] || keys['ArrowLeft']) {
+                    force.x -= forceMagnitude;
+                }
+                if (keys['KeyD'] || keys['ArrowRight']) {
+                    force.x += forceMagnitude;
+                }
+
+                // Apply force only if there's movement input
+                if (force.x !== 0 || force.y !== 0) {
+                     Matter.Body.applyForce(this.playerBotBody, this.playerBotBody.position, force);
+                }
+
+                // Basic rotation for testing (Q/E keys)
+                const torqueMagnitude = 0.0005 * this.playerBotBody.mass;
+                 if (keys['KeyQ']) {
+                    Matter.Body.setAngularVelocity(this.playerBotBody, this.playerBotBody.angularVelocity - torqueMagnitude);
+                 }
+                 if (keys['KeyE']) {
+                    Matter.Body.setAngularVelocity(this.playerBotBody, this.playerBotBody.angularVelocity + torqueMagnitude);
+                 }
+            }
+
+            cleanup() {
+                console.log("Cleaning up battle...");
+                if (this.runner) {
+                    Matter.Runner.stop(this.runner);
+                    this.runner = null;
+                }
+                if (this.render) {
+                    Matter.Render.stop(this.render);
+                     if (this.render.canvas) {
+                        this.render.canvas.remove(); // Remove the canvas element
+                    }
+                    this.render = null;
+                    this.canvas = null;
+                }
+                if (this.engine) {
+                    Matter.Events.off(this.engine, 'beforeUpdate', this.gameLoop); // Remove event listener
+                    Matter.World.clear(this.engine.world, false); // False to keep static bodies if needed, but here we clear all
+                    Matter.Engine.clear(this.engine);
+                    this.engine = null;
+                }
+                this.playerBotBody = null;
+                this.enemyBotBody = null;
+
+                // Clear the battle arena div content just in case
+                const battleArena = document.getElementById('battleArena');
+                if (battleArena) {
+                    battleArena.innerHTML = '';
+                }
+                window.removeEventListener('resize', this.handleResize.bind(this)); // Remove resize listener
+                console.log("Battle cleanup complete.");
+            }
+
+            handleResize() {
+                const battleArena = document.getElementById('battleArena');
+                if (!this.render || !battleArena || !this.canvas) return;
+
+                this.render.bounds.max.x = battleArena.clientWidth;
+                this.render.bounds.max.y = battleArena.clientHeight;
+                this.render.options.width = battleArena.clientWidth;
+                this.render.options.height = battleArena.clientHeight;
+                this.canvas.width = battleArena.clientWidth;
+                this.canvas.height = battleArena.clientHeight;
+
+                // Update ground and walls based on new dimensions if they exist
+                if (this.engine && this.engine.world) {
+                    const staticBodies = Matter.Composite.allBodies(this.engine.world).filter(body => body.isStatic);
+                    const ground = staticBodies.find(body => body.label === 'Rectangle Body' && body.position.y > battleArena.clientHeight - 100); // Heuristic to find ground
+
+                    if (ground) {
+                        Matter.Body.setPosition(ground, { x: battleArena.clientWidth / 2, y: battleArena.clientHeight - 30 });
+                        Matter.Body.setVertices(ground, Matter.Vertices.fromPath(`L 0 0 L ${battleArena.clientWidth} 0 L ${battleArena.clientWidth} 60 L 0 60`));
+                    }
+                     // Similarly, update walls if they were created with specific labels or properties
+                }
+                console.log(`Battle Arena Resized to ${battleArena.clientWidth}x${battleArena.clientHeight}`);
+            }
         }
 
         // --- Drag/Drop and Viewport Manager ---
         class ViewportManager {
-             // ... full implementation of drag/drop and panning ...
+            constructor(gameState, gameManager) {
+                this.gameState = gameState;
+                this.gameManager = gameManager; // gameManager has updateCanvasTransform
+                this.uiManager = uiManager; // For adjustZoom
+
+                this.buildViewport = document.getElementById('buildViewport');
+                this.buildCanvas = document.getElementById('buildCanvas'); // Though gameManager updates this
+
+                this.isPanning = false;
+                this.lastPanPosition = { x: 0, y: 0 };
+
+                this.draggingComponentType = null;
+                this.dragPreviewElement = null;
+
+                this.isMovingComponent = false;
+                this.movingComponentInitialGrid = null; // Stores {gridX, gridY, componentId}
+                this.movedComponentOriginalData = null; // Stores full snapshot of component before move
+
+                this.setupEventListeners();
+                this.buildViewport.style.cursor = 'grab';
+            }
+
+            // --- Coordinate Transformation Helpers ---
+            getCanvasCoordinates(clientX, clientY) {
+                const viewportRect = this.buildViewport.getBoundingClientRect();
+                const uiState = this.gameState.state.ui;
+                // Adjust for viewport offset, then for pan, then for zoom
+                const x = (clientX - viewportRect.left - uiState.panOffset.x) / uiState.zoomLevel;
+                const y = (clientY - viewportRect.top - uiState.panOffset.y) / uiState.zoomLevel;
+                return { x, y };
+            }
+
+            getGridCoordinates(canvasX, canvasY) {
+                const gridX = Math.floor(canvasX / CONFIG.GRID_SIZE);
+                const gridY = Math.floor(canvasY / CONFIG.GRID_SIZE);
+                return { gridX, gridY };
+            }
+
+            setupEventListeners() {
+                this.buildViewport.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.buildViewport.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.buildViewport.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.buildViewport.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+                this.buildViewport.addEventListener('wheel', this.handleWheel.bind(this));
+
+                // Drag from palette
+                document.querySelectorAll('.component-item').forEach(item => {
+                    item.draggable = true; // Ensure items are draggable
+                    item.addEventListener('dragstart', this.handlePaletteDragStart.bind(this));
+                });
+                document.addEventListener('dragend', this.handleDragEnd.bind(this)); // Listen on document for robust cleanup
+
+                // Drop on viewport
+                this.buildViewport.addEventListener('dragover', this.handleDragOver.bind(this));
+                this.buildViewport.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                this.buildViewport.addEventListener('drop', this.handleDrop.bind(this));
+            }
+
+            // --- Drag and Drop Handlers ---
+            handlePaletteDragStart(event) {
+                const componentItem = event.target.closest('.component-item');
+                if (!componentItem) return;
+                const componentType = componentItem.dataset.component;
+                if (!componentType) return;
+
+                event.dataTransfer.setData('text/plain', componentType);
+                event.dataTransfer.effectAllowed = 'copy';
+                this.draggingComponentType = componentType;
+
+                if (this.dragPreviewElement) this.dragPreviewElement.remove();
+                this.dragPreviewElement = document.createElement('div');
+                // Use 'dragging' class for fixed position and base style, component-item for looks
+                this.dragPreviewElement.className = 'component-item dragging';
+
+                this.dragPreviewElement.innerHTML = componentItem.innerHTML;
+                this.dragPreviewElement.style.width = `${componentItem.offsetWidth}px`;
+                this.dragPreviewElement.style.height = `${componentItem.offsetHeight}px`;
+                this.dragPreviewElement.style.pointerEvents = 'none'; // Ensure it doesn't interfere with other mouse events
+
+                document.body.appendChild(this.dragPreviewElement);
+                this.updateDragPreviewPosition(event);
+            }
+
+            updateDragPreviewPosition(event) {
+                if (this.dragPreviewElement) {
+                    // Position relative to the viewport, not page, for fixed behavior
+                    this.dragPreviewElement.style.left = `${event.clientX + 5}px`;
+                    this.dragPreviewElement.style.top = `${event.clientY + 5}px`;
+                }
+            }
+
+            handleDragEnd(event) {
+                if (this.dragPreviewElement) {
+                    this.dragPreviewElement.remove();
+                    this.dragPreviewElement = null;
+                }
+                this.draggingComponentType = null;
+                // Reset any global drag styles if necessary
+                this.buildViewport.classList.remove('drag-over');
+            }
+
+            handleDragOver(event) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+                if (this.dragPreviewElement) {
+                    this.updateDragPreviewPosition(event);
+                }
+                this.buildViewport.classList.add('drag-over'); // Visual feedback
+            }
+
+            handleDragLeave(event) {
+                // Check if the mouse truly left the viewport or just entered a child element
+                if (event.relatedTarget && !this.buildViewport.contains(event.relatedTarget)) {
+                    this.buildViewport.classList.remove('drag-over');
+                } else if (!event.relatedTarget) { // Mouse left window
+                     this.buildViewport.classList.remove('drag-over');
+                }
+            }
+
+            handleDrop(event) {
+                event.preventDefault();
+                this.buildViewport.classList.remove('drag-over');
+                const componentType = event.dataTransfer.getData('text/plain') || this.draggingComponentType;
+
+                if (componentType) {
+                    const canvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
+                    const gridCoords = this.getGridCoordinates(canvasCoords.x, canvasCoords.y);
+
+                    this.gameManager.placeComponent(componentType, gridCoords.gridX, gridCoords.gridY);
+                }
+                this.handleDragEnd(event);
+            }
+
+            handleMouseDown(event) {
+                // Pan with middle mouse button (button === 1) or Alt + Left Click
+                // Ensure not trying to pan when a rotate tool might be active with Alt
+                if (event.button === 1 || (event.button === 0 && event.altKey && this.gameState.state.ui.activeTool !== 'rotate')) {
+                    event.preventDefault();
+                    this.isPanning = true;
+                    this.lastPanPosition = { x: event.clientX, y: event.clientY };
+                    this.buildViewport.style.cursor = 'grabbing';
+                    return; // Don't process selection if panning started
+                }
+
+                // Left click for selection/deselection
+                if (event.button === 0 && (this.gameState.state.ui.activeTool === 'place' || this.gameState.state.ui.activeTool === 'select')) {
+                    const canvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
+                    const gridCoords = this.getGridCoordinates(canvasCoords.x, canvasCoords.y);
+
+                    const clickedComponentInstance = this.gameState.state.bot.components.find(
+                        comp => comp.gridX === gridCoords.gridX && comp.gridY === gridCoords.gridY
+                    );
+
+                    if (clickedComponentInstance) {
+                        // Basic selection: replace current selection
+                        // TODO: Multi-select with Shift key can be added later
+                        if (this.gameState.state.ui.selectedComponents.includes(clickedComponentInstance.id)) {
+                            // If already selected and it's the only one, deselect. Otherwise, make it the only selection.
+                            // For now, just re-select it or clear others if implementing multi-select later.
+                            // Simple toggle for single selection for now:
+                            // this.gameState.state.ui.selectedComponents = []; // Clears selection if clicking already selected.
+                            // OR always make it the selection:
+                            this.gameState.state.ui.selectedComponents = [clickedComponentInstance.id];
+
+                    // If a component is selected, prepare for potential move
+                    this.isMovingComponent = true;
+                    this.movingComponentInitialGrid = {
+                        gridX: clickedComponentInstance.gridX,
+                        gridY: clickedComponentInstance.gridY,
+                        id: clickedComponentInstance.id
+                    };
+                    // Deep copy for history/revert
+                    this.movedComponentOriginalData = JSON.parse(JSON.stringify(clickedComponentInstance));
+
+                    // Create a preview for moving (similar to drag from palette)
+                    if (this.dragPreviewElement) this.dragPreviewElement.remove();
+                    this.dragPreviewElement = document.createElement('div');
+                    const compDef = COMPONENTS[clickedComponentInstance.type];
+                    this.dragPreviewElement.className = 'component-item dragging'; // Re-use dragging style
+                    this.dragPreviewElement.style.background = compDef.color; // Set background color
+                    this.dragPreviewElement.textContent = uiManager.getComponentAbbreviation(clickedComponentInstance.type);
+                    this.dragPreviewElement.style.width = `${CONFIG.GRID_SIZE * this.gameState.state.ui.zoomLevel}px`; // Preview at current zoom
+                    this.dragPreviewElement.style.height = `${CONFIG.GRID_SIZE * this.gameState.state.ui.zoomLevel}px`;
+                    this.dragPreviewElement.style.pointerEvents = 'none';
+                    document.body.appendChild(this.dragPreviewElement);
+                    this.updateDragPreviewPosition(event); // Position it at mouse
+
+                    // Optionally, make the original component semi-transparent
+                    const originalElement = document.getElementById(`component-${clickedComponentInstance.id}`);
+                    if (originalElement) originalElement.style.opacity = '0.5';
+
+                        } else {
+                            this.gameState.state.ui.selectedComponents = [clickedComponentInstance.id];
+                        }
+                    } else {
+                        // Clicked on empty space, clear selection
+                        this.gameState.state.ui.selectedComponents = [];
+                    }
+            this.gameManager.renderBot(); // Re-render to show selection changes (or opacity change)
+                }
+            }
+
+            handleMouseMove(event) {
+        if (this.isMovingComponent) {
+            event.preventDefault();
+            if (this.dragPreviewElement) {
+                this.updateDragPreviewPosition(event);
+            }
+            // Optional: Highlight grid cell under preview
+        } else if (this.isPanning) { // Ensure else if, so not both
+                    event.preventDefault();
+                    const dx = event.clientX - this.lastPanPosition.x;
+                    const dy = event.clientY - this.lastPanPosition.y;
+
+                    this.gameState.state.ui.panOffset.x += dx;
+                    this.gameState.state.ui.panOffset.y += dy;
+
+                    this.lastPanPosition = { x: event.clientX, y: event.clientY };
+                    this.gameManager.updateCanvasTransform();
+                }
+            }
+
+            handleMouseUp(event) {
+                if (this.isMovingComponent) {
+                    event.preventDefault();
+                    const targetCanvasCoords = this.getCanvasCoordinates(event.clientX, event.clientY);
+                    const targetGridCoords = this.getGridCoordinates(targetCanvasCoords.x, targetCanvasCoords.y);
+
+                    const componentToMove = this.gameState.state.bot.components.find(c => c.id === this.movingComponentInitialGrid.id);
+
+                    // Reset visual opacity of original component before potential re-render
+                    const originalElement = document.getElementById(`component-${this.movingComponentInitialGrid.id}`);
+                    if (originalElement) originalElement.style.opacity = '1';
+
+                    // Validation
+                    let isValidMove = true;
+                    if (targetGridCoords.gridX === this.movedComponentOriginalData.gridX && targetGridCoords.gridY === this.movedComponentOriginalData.gridY) {
+                        isValidMove = false; // No actual move occurred, just a click
+                        // No notification needed, just reset state. Selection remains.
+                    } else if (this.gameState.state.bot.components.some(c => c.id !== componentToMove.id && c.gridX === targetGridCoords.gridX && c.gridY === targetGridCoords.gridY)) {
+                        uiManager.showNotification('Invalid move: Target location is occupied.', 'warning');
+                        isValidMove = false;
+                    } else if (!this.gameManager.isConnectedToBot(targetGridCoords.gridX, targetGridCoords.gridY, this.gameState.state.bot.components, componentToMove.id)) {
+                        uiManager.showNotification('Invalid move: Component would be disconnected.', 'warning');
+                        isValidMove = false;
+                    }
+
+
+                    if (isValidMove && componentToMove) {
+                        // Store snapshot before actual change for history
+                        const originalDataForHistory = JSON.parse(JSON.stringify(this.movedComponentOriginalData));
+
+                        // Update component's position
+                        componentToMove.gridX = targetGridCoords.gridX;
+                        componentToMove.gridY = targetGridCoords.gridY;
+
+                        // Add to history using the state *before* this move (movedComponentOriginalData)
+                        // and the state *after* this move (the current state of componentToMove)
+                        this.gameManager.addHistoryActionForMove(originalDataForHistory, componentToMove);
+
+                        this.gameState.updateBotStats(); // Recalculate stats if needed (mass distribution, etc. - not critical now)
+                        this.gameManager.renderBot();    // Re-render all components
+                        uiManager.showNotification('Component moved.', 'info');
+                    } else if (!isValidMove && !(targetGridCoords.gridX === this.movedComponentOriginalData.gridX && targetGridCoords.gridY === this.movedComponentOriginalData.gridY)) {
+                        // Move was invalid and it wasn't just a click on the same spot, so re-render to restore opacity
+                        this.gameManager.renderBot();
+                    }
+                    // Else (it was just a click on the same spot), selection is handled, no further action needed.
+
+                    // Cleanup move state
+                    this.isMovingComponent = false;
+                    this.movingComponentInitialGrid = null;
+                    this.movedComponentOriginalData = null;
+                    if (this.dragPreviewElement) {
+                        this.dragPreviewElement.remove();
+                        this.dragPreviewElement = null;
+                    }
+                } else if (this.isPanning) {
+                    this.isPanning = false;
+                    this.buildViewport.style.cursor = 'grab';
+                }
+                // Note: Selection state is preserved if it was just a click, or cleared by other actions.
+            }
+
+            handleMouseLeave(event) { // Also stop panning or moving if mouse leaves viewport
+                if (this.isPanning) {
+                    this.isPanning = false;
+                    this.buildViewport.style.cursor = 'grab';
+                }
+                if (this.isMovingComponent) {
+                    // Cancel the move, restore original component's visual state
+                    const originalElement = document.getElementById(`component-${this.movingComponentInitialGrid.id}`);
+                    if (originalElement) originalElement.style.opacity = '1';
+
+                    this.isMovingComponent = false;
+                    this.movingComponentInitialGrid = null;
+                    this.movedComponentOriginalData = null;
+                    if (this.dragPreviewElement) {
+                        this.dragPreviewElement.remove();
+                        this.dragPreviewElement = null;
+                    }
+                    this.gameManager.renderBot(); // Re-render to ensure visual consistency
+                    uiManager.showNotification('Move cancelled: mouse left build area.', 'info');
+                }
+            }
+
+            handleWheel(event) {
+                event.preventDefault();
+                const delta = event.deltaY > 0 ? -CONFIG.ZOOM_STEP : CONFIG.ZOOM_STEP;
+                // Pass the mouse position for zoom-to-cursor later if uiManager.adjustZoom supports it
+                // For now, uiManager.adjustZoom zooms to center (based on transform-origin)
+                this.uiManager.adjustZoom(delta);
+            }
         }
 
         // --- Main Initialization ---
         const gameState = new GameStateManager();
         const uiManager = new UIManager(gameState);
-        const gameManager = new GameManager();
-        const battleManager = new BattleManager(); // Placeholder for full class
-        // const viewportManager = new ViewportManager(gameState, gameManager); // Placeholder
+        const battleManager = new BattleManager(); // Instantiated
+        const gameManager = new GameManager(); // GameManager might use battleManager
+        const viewportManager = new ViewportManager(gameState, gameManager);
         
         // Startup
         gameManager.renderBot();
@@ -2740,5 +4360,39 @@
         }
 
     </script>
+
+    <!-- Settings Modal HTML (placed before closing body tag) -->
+    <div class="modal-overlay" id="settingsModalOverlay" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 class="modal-title" id="settingsModalTitle" style="margin-bottom: 0;">Game Settings</h3>
+                <button id="settingsCloseBtn" style="background:none; border:none; font-size: 24px; color:var(--text-secondary); cursor:pointer; padding:0;">&times;</button>
+            </div>
+            <div class="modal-body" id="settingsModalBody" style="text-align: left;">
+                <div class="setting-item">
+                    <label for="masterVolume">Master Volume:</label>
+                    <input type="range" id="masterVolume" name="masterVolume" min="0" max="100" value="80" class="settings-input">
+                </div>
+                <div class="setting-item">
+                    <label for="enableParticles">Enable Particle Effects:</label>
+                    <input type="checkbox" id="enableParticles" name="enableParticles" checked class="settings-input" style="height: auto;">
+                </div>
+                <div class="setting-item">
+                    <label for="themeSelect">UI Theme:</label>
+                    <select id="themeSelect" name="themeSelect" class="settings-input">
+                        <option value="dark_blue">Dark Blue (Default)</option>
+                        <option value="light_mode" disabled>Light Mode (Coming Soon)</option>
+                    </select>
+                </div>
+                 <div class="setting-item" style="margin-top: 20px;">
+                    <label for="resetTutorials">Reset In-Game Tutorials:</label>
+                    <button class="btn btn-secondary btn-small" id="resetTutorialsBtn" style="padding: 8px 12px; font-size: 12px;">Reset Tutorials</button>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 30px;">
+                <button class="btn btn-primary" id="settingsApplyBtn">Apply & Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
