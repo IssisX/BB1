@@ -191,8 +191,11 @@
         }
 
         .component-palette {
-            width: 320px;
+            width: 260px; /* Reduced default width */
             background: rgba(26, 26, 46, 0.95);
+            position: relative; /* For toggle button positioning */
+            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease; /* Smooth transitions */
+            padding: 25px 20px; /* Ensure padding is part of transition */
             backdrop-filter: blur(20px);
             border-right: 1px solid var(--glass-border);
             overflow-y: auto;
@@ -575,8 +578,11 @@
 
         /* Enhanced Stats Panel */
         .stats-panel {
-            width: 350px;
+            width: 260px; /* Reduced default width */
             background: rgba(26, 26, 46, 0.95);
+            position: relative; /* For toggle button positioning */
+            transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease; /* Smooth transitions */
+            padding: 25px 20px; /* Ensure padding is part of transition */
             backdrop-filter: blur(20px);
             border-left: 1px solid var(--glass-border);
             padding: 25px 20px;
@@ -1648,6 +1654,63 @@
             box-shadow: 0 0 5px var(--warning-yellow), 0 0 8px white; /* Glow effect */
             /* Size will be set by JS */
         }
+
+        /* Collapsible Panel CSS */
+        .component-palette.collapsed,
+        .stats-panel.collapsed {
+            width: 40px; /* Collapsed width */
+            padding-left: 0;
+            padding-right: 0;
+            overflow: hidden;
+        }
+        .component-palette.collapsed > *:not(.panel-toggle-btn),
+        .stats-panel.collapsed > *:not(.panel-toggle-btn) {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none; /* Prevent interaction with hidden content */
+        }
+
+        .panel-toggle-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 25px;
+            height: 70px;
+            background-color: var(--dark-elevated);
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 18px;
+            z-index: 10;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .panel-toggle-btn:hover {
+            background-color: var(--primary-blue);
+            color: white;
+        }
+
+        .component-palette .panel-toggle-btn {
+            right: -26px;
+            border-left: none;
+            border-top-right-radius: var(--border-radius);
+            border-bottom-right-radius: var(--border-radius);
+        }
+        .component-palette.collapsed .panel-toggle-btn {
+             right: -26px;
+        }
+
+        .stats-panel .panel-toggle-btn {
+            left: -26px;
+            border-right: none;
+            border-top-left-radius: var(--border-radius);
+            border-bottom-left-radius: var(--border-radius);
+        }
+         .stats-panel.collapsed .panel-toggle-btn {
+            left: -26px;
+        }
     </style>
 </head>
 <body>
@@ -1698,7 +1761,8 @@
         <!-- Enhanced Builder Mode -->
         <div class="builder-mode" id="builderMode">
             <!-- Enhanced Component Palette -->
-            <div class="component-palette animate-slide-in-left">
+            <div class="component-palette animate-slide-in-left" id="componentPalette">
+                <button class="panel-toggle-btn" id="togglePaletteBtn" title="Toggle Component Palette">&lt;</button>
                 <div class="palette-header">
                     <div class="palette-title">Components</div>
                     <div class="palette-filter">
@@ -1989,7 +2053,8 @@
             </div>
 
             <!-- Enhanced Stats Panel -->
-            <div class="stats-panel animate-slide-in-right">
+            <div class="stats-panel animate-slide-in-right" id="statsPanel">
+                <button class="panel-toggle-btn" id="toggleStatsBtn" title="Toggle Stats Panel">&gt;</button>
                 <div class="stats-header">
                     <div class="stats-title">Bot Analytics</div>
                 </div>
@@ -2467,6 +2532,7 @@
             }
 
             emit(event, data) {
+                console.log(`[GameStateManager.emit] Emitting event: ${event}`, data ? JSON.stringify(data) : '');
                 if (this.listeners[event]) {
                     this.listeners[event].forEach(callback => callback(data));
                 }
@@ -2482,6 +2548,7 @@
             }
 
             addHistoryAction(action) {
+                console.log('[GameStateManager.addHistoryAction] Adding action:', JSON.stringify(action));
                 this.state.history.actions = this.state.history.actions.slice(0, this.state.history.currentIndex + 1);
                 this.state.history.actions.push(action);
                 if (this.state.history.actions.length > this.state.history.maxActions) {
@@ -2519,6 +2586,7 @@
                      console.error("ApplyHistoryState: Unknown data format or unhandled actionType", data, actionType);
                 }
                 this.updateBotStats();
+                console.log('[GameStateManager.applyHistoryState] Emitting botDesignChanged after applying history state.');
                 this.emit('botDesignChanged');
             }
 
@@ -2588,7 +2656,68 @@
                 };
                 this.modal.confirmBtn.addEventListener('click', () => this.closeModal(true));
                 this.modal.cancelBtn.addEventListener('click', () => this.closeModal(false));
+
+                // Collapsible panels
+                this.componentPaletteEl = document.getElementById('componentPalette');
+                this.statsPanelEl = document.getElementById('statsPanel');
+                this.togglePaletteBtn = document.getElementById('togglePaletteBtn');
+                this.toggleStatsBtn = document.getElementById('toggleStatsBtn');
+
+                if (this.togglePaletteBtn && this.componentPaletteEl) {
+                    this.togglePaletteBtn.addEventListener('click', () => this.togglePanel(this.componentPaletteEl, this.togglePaletteBtn, 'left'));
+                }
+                if (this.toggleStatsBtn && this.statsPanelEl) {
+                    this.toggleStatsBtn.addEventListener('click', () => this.togglePanel(this.statsPanelEl, this.toggleStatsBtn, 'right'));
+                }
+
+                this.loadPanelStates(); // Load initial panel states
             }
+
+            loadPanelStates() {
+                const paletteCollapsed = localStorage.getItem('panel_left_collapsed') === 'true';
+                if (this.componentPaletteEl && this.togglePaletteBtn) {
+                    this.togglePanel(this.componentPaletteEl, this.togglePaletteBtn, 'left', paletteCollapsed);
+                }
+
+                const statsCollapsed = localStorage.getItem('panel_right_collapsed') === 'true'; // Default to collapsed if not set
+                if (this.statsPanelEl && this.toggleStatsBtn) {
+                     this.togglePanel(this.statsPanelEl, this.toggleStatsBtn, 'right', statsCollapsed);
+                }
+            }
+
+            togglePanel(panelElement, buttonElement, side, forceCollapse = null) {
+                if (!panelElement || !buttonElement) return;
+
+                const isCurrentlyCollapsed = panelElement.classList.contains('collapsed');
+                let shouldCollapse;
+
+                if (forceCollapse !== null) {
+                    shouldCollapse = forceCollapse;
+                } else {
+                    shouldCollapse = !isCurrentlyCollapsed;
+                }
+
+                if (shouldCollapse) {
+                    panelElement.classList.add('collapsed');
+                } else {
+                    panelElement.classList.remove('collapsed');
+                }
+
+                const isNowCollapsed = panelElement.classList.contains('collapsed');
+
+                if (side === 'left') {
+                    buttonElement.innerHTML = isNowCollapsed ? '&gt;' : '&lt;';
+                } else if (side === 'right') {
+                    buttonElement.innerHTML = isNowCollapsed ? '&lt;' : '&gt;';
+                }
+                buttonElement.title = isNowCollapsed ? 'Expand Panel' : 'Collapse Panel';
+
+                localStorage.setItem(`panel_${side}_collapsed`, isNowCollapsed);
+
+                // Dispatch resize event to allow other elements to adjust
+                window.dispatchEvent(new Event('resize'));
+            }
+
 
             async showModal(title, body, confirmText = 'Confirm', cancelText = 'Cancel') {
                 this.modal.title.textContent = title;
@@ -2996,6 +3125,8 @@
                 this.gameState = gameState; // Store gameState for easier access
                 this.setupEventListeners();
                 this.updateCanvasTransform();
+                // Verify event listener for rendering
+                console.log('[GameManager.constructor] botDesignChanged listener set up.');
             }
 
             // --- Methods for Component Moving & Placement Validation ---
@@ -3047,27 +3178,61 @@
             }
 
             canPlaceComponent(componentType, gridX, gridY) {
+                console.log(`[canPlaceComponent] Checking for: ${componentType} at X:${gridX}, Y:${gridY}`);
                 const componentDef = COMPONENTS[componentType];
                 const components = gameState.state.bot.components;
-                
-                if (components.some(c => c.gridX === gridX && c.gridY === gridY)) return false; // Occupied
-                if (componentDef.maxCount && components.filter(c => c.type === componentType).length >= componentDef.maxCount) return false;
-                if (gameState.state.bot.totalWeight + componentDef.mass > CONFIG.MAX_WEIGHT) return false;
-                if (components.length > 0 && !this.isConnectedToBot(gridX, gridY, components)) return false;
-                if (components.length === 0 && componentType !== 'control-unit') return false; // First must be core
 
-                return true;
+                const isOccupied = components.some(c => c.gridX === gridX && c.gridY === gridY);
+                if (isOccupied) {
+                    console.warn('[canPlaceComponent] Failed: Cell is occupied.');
+                    return { valid: false, reason: 'occupied' };
+                }
+
+                const currentCount = components.filter(c => c.type === componentType).length;
+                if (componentDef.maxCount && currentCount >= componentDef.maxCount) {
+                    console.warn(`[canPlaceComponent] Failed: Max count for ${componentType} (${componentDef.maxCount}) reached.`);
+                    return { valid: false, reason: 'maxCount' };
+                }
+
+                const newWeight = gameState.state.bot.totalWeight + componentDef.mass;
+                if (newWeight > CONFIG.MAX_WEIGHT) {
+                    console.warn(`[canPlaceComponent] Failed: Exceeds max weight. New: ${newWeight}, Max: ${CONFIG.MAX_WEIGHT}`);
+                    return { valid: false, reason: 'maxWeight' };
+                }
+
+                if (components.length > 0) {
+                    const connected = this.isConnectedToBot(gridX, gridY, components);
+                    if (!connected) {
+                        console.warn('[canPlaceComponent] Failed: Not connected to existing bot structure.');
+                        return { valid: false, reason: 'disconnected' };
+                    }
+                } else {
+                    if (componentType !== 'control-unit') {
+                        console.warn('[canPlaceComponent] Failed: First component must be a Control Unit.');
+                        return { valid: false, reason: 'noControlUnitFirst' };
+                    }
+                }
+
+                console.log('[canPlaceComponent] Success: Placement is valid.');
+                return { valid: true, reason: null };
             }
 
             isConnectedToBot(gridX, gridY, components, ignoreComponentId = null) {
+                console.log(`[isConnectedToBot] Checking connection for new part at X:${gridX}, Y:${gridY}. Ignoring ID: ${ignoreComponentId}`);
                 const otherComponents = ignoreComponentId
                     ? components.filter(c => c.id !== ignoreComponentId)
                     : components;
+                console.log('[isConnectedToBot] Other components considered:', otherComponents.map(c=> ({id:c.id, x:c.gridX, y:c.gridY})));
 
-                if (otherComponents.length === 0) return true; // If no other components, it's connected (it's the first or only)
+                if (otherComponents.length === 0) {
+                    console.log('[isConnectedToBot] No other components, considered connected.');
+                    return true; // If no other components, it's connected (it's the first or only)
+                }
 
                 const adjacent = [{ x: gridX - 1, y: gridY }, { x: gridX + 1, y: gridY }, { x: gridX, y: gridY - 1 }, { x: gridX, y: gridY + 1 }];
-                return adjacent.some(pos => otherComponents.find(c => c.gridX === pos.x && c.gridY === pos.y));
+                const isConnected = adjacent.some(pos => otherComponents.find(c => c.gridX === pos.x && c.gridY === pos.y));
+                console.log('[isConnectedToBot] Is connected:', isConnected);
+                return isConnected;
             }
 
             addHistoryActionForMove(originalComponentData, movedComponentData) {
@@ -3081,11 +3246,26 @@
             }
 
             placeComponent(componentType, gridX, gridY) {
-                if (!this.canPlaceComponent(componentType, gridX, gridY)) {
-                    uiManager.showNotification(`Cannot place ${COMPONENTS[componentType].name} here.`, 'warning', 2000);
+                console.log(`[placeComponent] Received raw gridX: ${gridX}, gridY: ${gridY}`);
+                if (typeof gridX !== 'number' || isNaN(gridX) || typeof gridY !== 'number' || isNaN(gridY)) {
+                    console.error('[placeComponent] ERROR: Received NaN or non-number gridX/gridY. Aborting placement.', {gridX, gridY});
+                    uiManager.showNotification('Placement failed: Invalid grid coordinates received.', 'error');
+                    return false; // Abort
+                }
+                // Optional: Check if coordinates are within an expected very large bound, e.g. -1000 to 1000
+                // if (gridX < -1000 || gridX > 1000 || gridY < -1000 || gridY > 1000) {
+                //     console.warn(`[placeComponent] WARNING: Received gridX/gridY that seem far out of expected bounds: ${gridX}, ${gridY}`);
+                // }
+
+                console.log(`[placeComponent] Attempting to place: ${componentType} at X:${gridX}, Y:${gridY}`);
+                const placementCheckResult = this.canPlaceComponent(componentType, gridX, gridY);
+                if (!placementCheckResult.valid) {
+                    console.warn(`[placeComponent] Placement failed: ${placementCheckResult.reason}`);
+                    uiManager.showNotification(`Cannot place ${COMPONENTS[componentType].name} here. Reason: ${placementCheckResult.reason}`, 'warning', 3000);
                     return false;
                 }
 
+                console.log('[placeComponent] Placement validated successfully.');
                 const newComponent = {
                     id: Date.now() + Math.random(),
                     type: componentType,
@@ -3095,22 +3275,46 @@
                 
                 const beforeState = gameState.state.bot.components.map(c => ({...c}));
                 const afterState = [...beforeState, newComponent];
-                gameState.addHistoryAction({ type: 'add', before: beforeState, after: afterState });
                 
-                gameState.applyHistoryState(afterState);
-                // playSound('build_place_component');
+                // Restore history action. Note: 'add' type in addHistoryAction now includes componentId for potential future use,
+                // but applyHistoryState for 'add' type expects the full 'afterState' array.
+                this.gameState.addHistoryAction({
+                    type: 'add',
+                    componentId: newComponent.id, // Keep for consistency if other action types use it
+                    before: beforeState,
+                    after: afterState.map(c => ({...c})) // Ensure afterState in history is also a deep copy
+                });
+
+                // Apply the new state using applyHistoryState, which will also emit 'botDesignChanged'
+                console.log('[placeComponent] Applying state via history for add action.');
+                this.gameState.applyHistoryState(afterState, 'add'); // 'add' type might imply setting components directly in applyHistoryState
+
+                // playSound('build_place_component'); // Conceptual sound, already present
                 return true;
             }
 
             renderBot() {
+                console.log('[GameManager.renderBot] Called. Rendering components:', JSON.stringify(this.gameState.state.bot.components));
                 const buildCanvas = document.getElementById('buildCanvas');
-                buildCanvas.querySelectorAll('.bot-component, .connection-line').forEach(el => el.remove());
+                if (!buildCanvas) {
+                    console.error('[renderBot] buildCanvas element not found!');
+                    return;
+                }
+                console.log('[renderBot] Clearing previous components and lines from buildCanvas.');
+                // Clear previous components
+                const oldComponents = buildCanvas.querySelectorAll('.bot-component');
+                oldComponents.forEach(el => el.remove());
+                const oldLines = buildCanvas.querySelectorAll('.connection-line'); // Assuming these are direct children of buildCanvas or within buildGrid
+                oldLines.forEach(el => el.remove()); // If lines are inside SVG, this might need adjustment or be handled by renderConnections
                 
+                console.log('[renderBot] Rendering connections.');
                 this.renderConnections();
 
+                console.log('[renderBot] Rendering individual components.');
                 gameState.state.bot.components.forEach(component => {
                     this.renderComponent(component, buildCanvas);
                 });
+                console.log('[renderBot] Finished rendering components.');
             }
 
             renderConnections() {
@@ -3136,22 +3340,31 @@
             }
 
             renderComponent(component, container) {
+                console.log(`[GameManager.renderComponent] Rendering component ID: ${component.id}, Type: ${component.type} at gridX: ${component.gridX}, gridY: ${component.gridY}, Rotation: ${component.rotation || 0}`);
                 const compDef = COMPONENTS[component.type];
+                if (!compDef) {
+                    console.error(`[renderComponent] No component definition found for type: ${component.type}`);
+                    return;
+                }
+
                 const element = document.createElement('div');
                 element.className = 'bot-component';
-                // Check if gameState and selectedComponents are available before trying to access them
-                if (this.gameState && this.gameState.state.ui.selectedComponents && this.gameState.state.ui.selectedComponents.includes(component.id)) {
+                if (this.gameState.state.ui.selectedComponents.includes(component.id)) {
                     element.classList.add('selected');
                 }
                 element.id = `component-${component.id}`;
-                const rotation = component.rotation || 0;
-                // Apply transform for position and rotation
-                element.style.position = 'absolute';
-                element.style.left = `${component.gridX * CONFIG.GRID_SIZE}px`;
-                element.style.top = `${component.gridY * CONFIG.GRID_SIZE}px`;
+
+                // Calculate pixel positions
+                const pixelX = component.gridX * CONFIG.GRID_SIZE;
+                const pixelY = component.gridY * CONFIG.GRID_SIZE;
+                console.log(`[renderComponent] Calculated pixelX: ${pixelX}, pixelY: ${pixelY}`);
+
+                element.style.position = 'absolute'; // Ensure position is absolute
+                element.style.left = `${pixelX}px`;
+                element.style.top = `${pixelY}px`;
                 element.style.width = `${CONFIG.GRID_SIZE}px`;
                 element.style.height = `${CONFIG.GRID_SIZE}px`;
-                element.style.background = compDef.color;
+                element.style.background = compDef.color || '#cccccc';
                 element.style.borderRadius = '8px';
                 element.style.display = 'flex';
                 element.style.alignItems = 'center';
@@ -3162,11 +3375,15 @@
                 element.style.textShadow = '1px 1px 2px rgba(0,0,0,0.8)';
                 element.style.cursor = 'pointer';
                 element.style.userSelect = 'none';
-                element.style.zIndex = '10';
+                element.style.zIndex = '10'; // Ensure it's above grid lines
+                element.style.border = this.gameState.state.ui.selectedComponents.includes(component.id) ? '2px solid var(--accent-orange)' : '2px solid rgba(255, 255, 255, 0.3)'; // Ensure border is always visible for debugging
+
+                const rotation = component.rotation || 0;
                 element.style.transformOrigin = 'center center';
-                element.style.transform = `rotate(${rotation}deg)`; // Only rotation here as left/top handle position
+                element.style.transform = `rotate(${rotation}deg)`;
 
                 element.textContent = uiManager.getComponentAbbreviation(component.type);
+                console.log(`[renderComponent] Element style: left=${element.style.left}, top=${element.style.top}, width=${element.style.width}, height=${element.style.height}, background=${element.style.background}, transform=${element.style.transform}`);
 
                 const healthIndicator = document.createElement('div');
                 healthIndicator.className = 'component-health-indicator';
@@ -3174,14 +3391,21 @@
                 healthIndicator.style.backgroundPosition = `${100 - healthPercent}% 0`;
                 element.appendChild(healthIndicator);
 
+                // Tooltip listeners (already there, ensure they don't break)
                 element.addEventListener('mouseenter', () => {
                     const stats = [`<div class="tooltip-stat"><span>Health:</span><span>${compDef.durability}</span></div>`, `<div class="tooltip-stat"><span>Mass:</span><span>${compDef.mass}kg</span></div>`, `<div class="tooltip-stat"><span>Power:</span><span>${compDef.powerDraw}W</span></div>`];
                     if (compDef.damage) stats.push(`<div class="tooltip-stat"><span>Damage:</span><span>${compDef.damage}</span></div>`);
+                    if (compDef.shieldHealth) stats.push(`<div class="tooltip-stat"><span>Shield:</span><span>${compDef.shieldHealth}</span></div>`);
                     uiManager.tooltip.show(element, compDef.name, stats.join(''), compDef.description);
                 });
                 element.addEventListener('mouseleave', () => uiManager.tooltip.hide());
                 
+                if (!container) {
+                    console.error('[renderComponent] Parent container (buildCanvas) is null or undefined!');
+                    return;
+                }
                 container.appendChild(element);
+                console.log(`[renderComponent] Appended ${component.type} to container. Child count: ${container.children.length}`);
             }
 
             async clearBot() {
